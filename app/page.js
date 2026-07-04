@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import api from '../lib/api';
 
@@ -15,6 +15,8 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [hospitals, setHospitals] = useState([]);
+  const [selectedHospitalId, setSelectedHospitalId] = useState('');
 
   const isEmail = (val) => val.includes('@');
 
@@ -28,12 +30,20 @@ export default function LoginPage() {
 
   const allRulesPassed = passwordRules.every((r) => r.test(password));
 
+  // Fetch hospital list once, for the signup dropdown
+  useEffect(() => {
+    api.get('/api/hospital/all')
+      .then((res) => setHospitals(res.data || []))
+      .catch((err) => console.error('Failed to load hospitals:', err));
+  }, []);
+
   const reset = () => {
     setStep(1);
     setIdentifier('');
     setOtp('');
     setPassword('');
     setConfirmPassword('');
+    setSelectedHospitalId('');
     setError('');
     setSuccess('');
   };
@@ -41,6 +51,26 @@ export default function LoginPage() {
   const switchMode = (newMode) => {
     setMode(newMode);
     reset();
+  };
+
+  // Fetch /me and store hospitalId after any successful auth
+  const finishLogin = async (token) => {
+    localStorage.setItem('authToken', token);
+    localStorage.setItem('userIdentifier', identifier);
+    try {
+      const meRes = await api.get('/api/auth/me', {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (meRes.data?.hospitalId) {
+        localStorage.setItem('hospitalId', meRes.data.hospitalId);
+      }
+      if (meRes.data?.name) {
+        localStorage.setItem('userName', meRes.data.name);
+      }
+    } catch (err) {
+      console.error('Failed to fetch /me:', err);
+    }
+    router.push('/dashboard');
   };
 
   // ── LOGIN ──
@@ -56,9 +86,7 @@ export default function LoginPage() {
       } else if (res.data === 'Please complete signup first') {
         setError('Please sign up and set a password first.');
       } else {
-        localStorage.setItem('authToken', res.data);
-        localStorage.setItem('userIdentifier', identifier);
-        router.push('/dashboard');
+        await finishLogin(res.data);
       }
     } catch (err) {
       setError('Login failed. Please try again.');
@@ -99,7 +127,7 @@ export default function LoginPage() {
         setError('Invalid OTP. Please try again.');
       } else {
         setStep(3);
-        setSuccess('OTP verified! Now set your password.');
+        setSuccess('OTP verified! Now select your hospital and set your password.');
       }
     } catch (err) {
       setError('OTP verification failed.');
@@ -107,8 +135,12 @@ export default function LoginPage() {
     setLoading(false);
   };
 
-  // ── SIGNUP: Step 3 — set password ──
+  // ── SIGNUP: Step 3 — set password (with hospital) ──
   const handleSetPassword = async () => {
+    if (!selectedHospitalId) {
+      setError('Please select your hospital.');
+      return;
+    }
     if (!allRulesPassed) {
       setError('Password does not meet all requirements.');
       return;
@@ -120,10 +152,12 @@ export default function LoginPage() {
     setLoading(true);
     setError('');
     try {
-      const res = await api.post('/api/auth/set-password', { identifier, password });
-      localStorage.setItem('authToken', res.data);
-      localStorage.setItem('userIdentifier', identifier);
-      router.push('/dashboard');
+      const res = await api.post('/api/auth/set-password', {
+        identifier,
+        password,
+        hospitalId: selectedHospitalId
+      });
+      await finishLogin(res.data);
     } catch (err) {
       setError('Failed to set password. Please try again.');
     }
@@ -165,9 +199,7 @@ export default function LoginPage() {
       if (res.data === 'Invalid OTP') {
         setError('Invalid OTP. Please try again.');
       } else {
-        localStorage.setItem('authToken', res.data);
-        localStorage.setItem('userIdentifier', identifier);
-        router.push('/dashboard');
+        await finishLogin(res.data);
       }
     } catch (err) {
       setError('Reset failed. Please try again.');
@@ -276,7 +308,7 @@ export default function LoginPage() {
           <div>
             {/* Step indicator */}
             <div className="flex items-center mb-6">
-              {['Enter Email/Phone', 'Verify OTP', 'Set Password'].map((label, idx) => (
+              {['Enter Email/Phone', 'Verify OTP', 'Hospital + Password'].map((label, idx) => (
                 <div key={idx} className="flex items-center flex-1">
                   <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold ${
                     step > idx + 1 ? 'bg-green-500 text-white' :
@@ -356,6 +388,24 @@ export default function LoginPage() {
               <div className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Select Your Hospital
+                  </label>
+                  <select
+                    value={selectedHospitalId}
+                    onChange={(e) => setSelectedHospitalId(e.target.value)}
+                    className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                  >
+                    <option value="">-- Choose a hospital --</option>
+                    {hospitals.map((h) => (
+                      <option key={h.id} value={h.id}>
+                        {h.name} {h.city ? `(${h.city})` : ''}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
                     New Password
                   </label>
                   <div className="relative">
@@ -415,7 +465,7 @@ export default function LoginPage() {
 
                 <button
                   onClick={handleSetPassword}
-                  disabled={loading || !allRulesPassed || password !== confirmPassword}
+                  disabled={loading || !allRulesPassed || password !== confirmPassword || !selectedHospitalId}
                   className="w-full bg-blue-600 text-white py-3 rounded-lg font-medium hover:bg-blue-700 disabled:opacity-50"
                 >
                   {loading ? 'Creating account...' : 'Create Account & Login'}

@@ -13,21 +13,28 @@ export default function Dashboard() {
   });
   const [appointments, setAppointments] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [hospitalName, setHospitalName] = useState('Hospital');
 
   useEffect(() => {
     const token = localStorage.getItem('authToken');
+    const hospitalId = localStorage.getItem('hospitalId');
     if (!token) {
       router.push('/');
       return;
     }
-    loadDashboard();
+    if (!hospitalId) {
+      console.error('No hospitalId found — this account may not be linked to a hospital.');
+      setLoading(false);
+      return;
+    }
+    loadDashboard(hospitalId);
   }, []);
 
-  const loadDashboard = async () => {
+  const loadDashboard = async (hospitalId) => {
     try {
       const [apptRes, queueRes] = await Promise.all([
-        api.get('/api/booking/doctor/1'),
-        api.get('/api/queue/status/1')
+        api.get(`/api/hospital/${hospitalId}/appointments/today`),
+        api.get(`/api/hospital/${hospitalId}/queue/summary`)
       ]);
       setAppointments(apptRes.data.slice(0, 5));
       setStats({
@@ -43,6 +50,8 @@ export default function Dashboard() {
 
   const logout = () => {
     localStorage.removeItem('authToken');
+    localStorage.removeItem('hospitalId');
+    localStorage.removeItem('userName');
     router.push('/');
   };
 
@@ -74,7 +83,7 @@ export default function Dashboard() {
       <div className="bg-white shadow-sm px-6 py-4 flex justify-between items-center">
         <h1 className="text-xl font-bold text-blue-600">🏥 Hospital Portal</h1>
         <div className="flex gap-4 items-center">
-          <span className="text-gray-600 text-sm">Apollo Hospital</span>
+          <span className="text-gray-600 text-sm">{hospitalName}</span>
           <button onClick={logout} className="text-red-500 text-sm hover:text-red-700">
             Logout
           </button>
