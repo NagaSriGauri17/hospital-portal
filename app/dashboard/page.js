@@ -11,9 +11,11 @@ export default function Dashboard() {
     currentToken: 0,
     waitingCount: 0
   });
-  const [appointments, setAppointments] = useState([]);
+  const [doctors, setDoctors] = useState([]);
+  const [selectedDoctorId, setSelectedDoctorId] = useState('');
+  const [board, setBoard] = useState({ inProgress: [], waiting: [], completed: [] });
   const [loading, setLoading] = useState(true);
-  const [hospitalName, setHospitalName] = useState('Hospital');
+  const [boardLoading, setBoardLoading] = useState(false);
 
   useEffect(() => {
     const token = localStorage.getItem('authToken');
@@ -32,20 +34,44 @@ export default function Dashboard() {
 
   const loadDashboard = async (hospitalId) => {
     try {
-      const [apptRes, queueRes] = await Promise.all([
+      const [apptRes, queueRes, doctorsRes] = await Promise.all([
         api.get(`/api/hospital/${hospitalId}/appointments/today`),
-        api.get(`/api/hospital/${hospitalId}/queue/summary`)
+        api.get(`/api/hospital/${hospitalId}/queue/summary`),
+        api.get(`/api/hospital/${hospitalId}/doctors`)
       ]);
-      setAppointments(apptRes.data.slice(0, 5));
       setStats({
         todayAppointments: apptRes.data.length,
         currentToken: queueRes.data.currentToken,
         waitingCount: queueRes.data.waitingCount
       });
+      setDoctors(doctorsRes.data || []);
+      if (doctorsRes.data && doctorsRes.data.length > 0) {
+        const firstId = doctorsRes.data[0].id.toString();
+        setSelectedDoctorId(firstId);
+        loadBoard(firstId);
+      }
     } catch (err) {
       console.error('Dashboard load error:', err);
     }
     setLoading(false);
+  };
+
+  const loadBoard = async (doctorId) => {
+    if (!doctorId) return;
+    setBoardLoading(true);
+    try {
+      const res = await api.get(`/api/queue/board/${doctorId}`);
+      setBoard(res.data);
+    } catch (err) {
+      console.error('Queue board error:', err);
+      setBoard({ inProgress: [], waiting: [], completed: [] });
+    }
+    setBoardLoading(false);
+  };
+
+  const handleDoctorSelect = (doctorId) => {
+    setSelectedDoctorId(doctorId);
+    loadBoard(doctorId);
   };
 
   const logout = () => {
@@ -79,11 +105,9 @@ export default function Dashboard() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header */}
       <div className="bg-white shadow-sm px-6 py-4 flex justify-between items-center">
         <h1 className="text-xl font-bold text-blue-600">🏥 Hospital Portal</h1>
         <div className="flex gap-4 items-center">
-          <span className="text-gray-600 text-sm">{hospitalName}</span>
           <button onClick={logout} className="text-red-500 text-sm hover:text-red-700">
             Logout
           </button>
@@ -92,23 +116,21 @@ export default function Dashboard() {
 
       <div className="max-w-6xl mx-auto px-6 py-8">
 
-        {/* Stats cards */}
         <div className="grid grid-cols-3 gap-6 mb-8">
           <div className="bg-white rounded-xl p-6 shadow-sm border-l-4 border-blue-500">
             <p className="text-gray-500 text-sm">Today's Appointments</p>
             <p className="text-3xl font-bold text-blue-600 mt-1">{stats.todayAppointments}</p>
           </div>
           <div className="bg-white rounded-xl p-6 shadow-sm border-l-4 border-green-500">
-            <p className="text-gray-500 text-sm">Current Token</p>
+            <p className="text-gray-500 text-sm">Current Token (all doctors)</p>
             <p className="text-3xl font-bold text-green-600 mt-1">{stats.currentToken}</p>
           </div>
           <div className="bg-white rounded-xl p-6 shadow-sm border-l-4 border-orange-500">
-            <p className="text-gray-500 text-sm">Waiting Patients</p>
+            <p className="text-gray-500 text-sm">Waiting Patients (all doctors)</p>
             <p className="text-3xl font-bold text-orange-600 mt-1">{stats.waitingCount}</p>
           </div>
         </div>
 
-        {/* Nav grid — 11 coloured cards */}
         <div className="mb-8">
           <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">Quick Access</h2>
           <div className="grid grid-cols-4 gap-3">
@@ -125,29 +147,90 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* Recent appointments */}
         <div className="bg-white rounded-xl shadow-sm p-6">
-          <h2 className="text-lg font-semibold text-gray-800 mb-4">Recent Appointments</h2>
-          {appointments.length === 0 ? (
-            <p className="text-gray-400 text-center py-8">No appointments yet</p>
+          <div className="flex justify-between items-center mb-5">
+            <h2 className="text-lg font-semibold text-gray-800">Live Queue</h2>
+            <select
+              value={selectedDoctorId}
+              onChange={(e) => handleDoctorSelect(e.target.value)}
+              className="border border-gray-300 rounded-lg px-4 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              {doctors.length === 0 ? (
+                <option value="">No doctors found</option>
+              ) : (
+                doctors.map(d => (
+                  <option key={d.id} value={d.id}>{d.name}</option>
+                ))
+              )}
+            </select>
+          </div>
+
+          {boardLoading ? (
+            <p className="text-gray-400 text-center py-8">Loading queue...</p>
           ) : (
-            <div className="space-y-3">
-              {appointments.map((apt) => (
-                <div key={apt.id}
-                  className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
-                  <div>
-                    <p className="font-medium text-gray-800">{apt.user?.name || 'Patient'}</p>
-                    <p className="text-sm text-gray-500">{apt.slot?.date} — {apt.slot?.startTime}</p>
-                  </div>
-                  <span className={`text-xs px-3 py-1 rounded-full font-medium ${
-                    apt.status === 'CONFIRMED' ? 'bg-green-100 text-green-700' :
-                    apt.status === 'COMPLETED' ? 'bg-blue-100 text-blue-700' :
-                    'bg-gray-100 text-gray-600'
-                  }`}>
-                    {apt.status}
-                  </span>
+            <div className="grid grid-cols-3 gap-4">
+              {/* In Progress */}
+              <div>
+                <div className="flex items-center gap-2 mb-3">
+                  <span className="w-2.5 h-2.5 bg-blue-500 rounded-full"></span>
+                  <h3 className="font-semibold text-gray-700 text-sm uppercase tracking-wide">In Progress</h3>
+                  <span className="text-xs text-gray-400">({board.inProgress.length})</span>
                 </div>
-              ))}
+                <div className="space-y-2">
+                  {board.inProgress.length === 0 ? (
+                    <p className="text-gray-400 text-xs text-center py-6 bg-gray-50 rounded-lg">No one currently in progress</p>
+                  ) : (
+                    board.inProgress.map((p, i) => (
+                      <div key={i} className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                        <p className="font-medium text-gray-800 text-sm">Token #{p.tokenNumber}</p>
+                        <p className="text-xs text-gray-600">{p.patientName || 'Patient'}</p>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+
+              {/* Next / Waiting */}
+              <div>
+                <div className="flex items-center gap-2 mb-3">
+                  <span className="w-2.5 h-2.5 bg-orange-500 rounded-full"></span>
+                  <h3 className="font-semibold text-gray-700 text-sm uppercase tracking-wide">Next / Waiting</h3>
+                  <span className="text-xs text-gray-400">({board.waiting.length})</span>
+                </div>
+                <div className="space-y-2">
+                  {board.waiting.length === 0 ? (
+                    <p className="text-gray-400 text-xs text-center py-6 bg-gray-50 rounded-lg">No one waiting</p>
+                  ) : (
+                    board.waiting.map((p, i) => (
+                      <div key={i} className="p-3 bg-orange-50 border border-orange-200 rounded-lg">
+                        <p className="font-medium text-gray-800 text-sm">Token #{p.tokenNumber}</p>
+                        <p className="text-xs text-gray-600">{p.patientName || 'Patient'}</p>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+
+              {/* Completed */}
+              <div>
+                <div className="flex items-center gap-2 mb-3">
+                  <span className="w-2.5 h-2.5 bg-green-500 rounded-full"></span>
+                  <h3 className="font-semibold text-gray-700 text-sm uppercase tracking-wide">Completed</h3>
+                  <span className="text-xs text-gray-400">({board.completed.length})</span>
+                </div>
+                <div className="space-y-2">
+                  {board.completed.length === 0 ? (
+                    <p className="text-gray-400 text-xs text-center py-6 bg-gray-50 rounded-lg">No one checked out yet</p>
+                  ) : (
+                    board.completed.map((p, i) => (
+                      <div key={i} className="p-3 bg-green-50 border border-green-200 rounded-lg">
+                        <p className="font-medium text-gray-800 text-sm">Token #{p.tokenNumber}</p>
+                        <p className="text-xs text-gray-600">{p.patientName || 'Patient'}</p>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
             </div>
           )}
         </div>

@@ -18,7 +18,9 @@ export default function AppointmentsPage() {
 
   const loadAppointments = async () => {
     try {
-      const res = await api.get('/api/booking/doctor/1');
+      const hospitalId = localStorage.getItem('hospitalId');
+if (!hospitalId) { setLoading(false); return; }
+const res = await api.get(`/api/hospital/${hospitalId}/appointments/today`);
       setAppointments(res.data);
     } catch (err) {
       console.error('Error loading appointments:', err);

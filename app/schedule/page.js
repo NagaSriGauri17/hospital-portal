@@ -8,6 +8,8 @@ export default function SchedulePage() {
   const router = useRouter();
   const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(false);
+  const [doctors, setDoctors] = useState([]);
+  const [selectedDoctorId, setSelectedDoctorId] = useState('');
   const [selectedDays, setSelectedDays] = useState({
     MONDAY: { enabled: false, start: '09:00', end: '13:00', slotMinutes: 15 },
     TUESDAY: { enabled: false, start: '09:00', end: '13:00', slotMinutes: 15 },
@@ -20,7 +22,22 @@ export default function SchedulePage() {
   useEffect(() => {
     const token = localStorage.getItem('authToken');
     if (!token) { router.push('/'); return; }
+    loadDoctors();
   }, []);
+
+  const loadDoctors = async () => {
+    const hospitalId = localStorage.getItem('hospitalId');
+    if (!hospitalId) return;
+    try {
+      const res = await api.get(`/api/hospital/${hospitalId}/doctors`);
+      setDoctors(res.data || []);
+      if (res.data && res.data.length > 0) {
+        setSelectedDoctorId(res.data[0].id.toString());
+      }
+    } catch (err) {
+      console.error('Error loading doctors:', err);
+    }
+  };
 
   const toggleDay = (day) => {
     setSelectedDays(prev => ({
@@ -37,11 +54,12 @@ export default function SchedulePage() {
   };
 
   const saveSchedule = async () => {
-    const days = Object.entries(selectedDays)
-      .filter(([_, v]) => v.enabled)
-      .map(([day, v]) => ({
-        day, start: v.start, end: v.end, slotMinutes: v.slotMinutes
-      }));
+    if (!selectedDoctorId) {
+      setMessage('❌ Please select a doctor');
+      return;
+    }
+
+    const days = Object.entries(selectedDays).filter(([_, v]) => v.enabled);
 
     if (days.length === 0) {
       setMessage('❌ Please select at least one day');
@@ -50,15 +68,30 @@ export default function SchedulePage() {
 
     setLoading(true);
     try {
-      await api.post('/api/schedule/set', { doctorId: 1, days });
-      await api.post('/api/schedule/regenerate/1');
+      // Backend expects ONE day per call — loop through each selected day
+      for (const [day, config] of days) {
+        await api.post('/api/schedule/set', {
+          doctorId: parseInt(selectedDoctorId),
+          dayOfWeek: day,
+          startTime: config.start,
+          endTime: config.end,
+          slotDurationMinutes: config.slotMinutes
+        });
+      }
+
+      // Then regenerate slots once, for the whole schedule
+      await api.post(`/api/schedule/regenerate/${selectedDoctorId}`);
+
       setMessage('✅ Schedule saved and slots regenerated for 30 days!');
     } catch (err) {
-      setMessage('❌ Failed to save schedule');
+      console.error('Schedule save error:', err);
+      setMessage('❌ Failed to save schedule: ' + (err.response?.data?.message || err.message || 'Unknown error'));
     }
     setLoading(false);
     setTimeout(() => setMessage(''), 5000);
   };
+
+  const selectedDoctor = doctors.find(d => d.id.toString() === selectedDoctorId);
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -77,7 +110,26 @@ export default function SchedulePage() {
         )}
 
         <div className="bg-white rounded-xl shadow-sm p-6">
-          <h2 className="text-lg font-semibold text-gray-800 mb-2">Dr. Rajesh Kumar — Weekly Schedule</h2>
+          <label className="block text-sm font-medium text-gray-700 mb-2">Select Doctor</label>
+          <select
+            value={selectedDoctorId}
+            onChange={(e) => setSelectedDoctorId(e.target.value)}
+            className="w-full border border-gray-300 rounded-lg px-4 py-3 mb-6 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+          >
+            {doctors.length === 0 ? (
+              <option value="">No doctors found</option>
+            ) : (
+              doctors.map(d => (
+                <option key={d.id} value={d.id}>
+                  {d.name} {d.specialty ? `— ${d.specialty.name}` : ''}
+                </option>
+              ))
+            )}
+          </select>
+
+          <h2 className="text-lg font-semibold text-gray-800 mb-2">
+            {selectedDoctor ? `${selectedDoctor.name} — Weekly Schedule` : 'Weekly Schedule'}
+          </h2>
           <p className="text-sm text-gray-500 mb-6">Select working days and hours. Slots are auto-generated for 30 days.</p>
 
           <div className="space-y-4">

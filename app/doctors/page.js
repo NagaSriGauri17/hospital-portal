@@ -11,27 +11,30 @@ export default function DoctorsPage() {
   const [message, setMessage] = useState('');
   const [showForm, setShowForm] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [hospitalId, setHospitalId] = useState('');
   const [form, setForm] = useState({
     name: '',
     phone: '',
     email: '',
     fee: '',
     experience: '',
-    hospitalId: '1',
     specialtyId: '1'
   });
   const [specialties, setSpecialties] = useState([]);
 
   useEffect(() => {
     const token = localStorage.getItem('authToken');
+    const hid = localStorage.getItem('hospitalId');
     if (!token) { router.push('/'); return; }
-    loadDoctors();
+    setHospitalId(hid || '');
+    loadDoctors(hid);
     loadSpecialties();
   }, []);
 
-  const loadDoctors = async () => {
+  const loadDoctors = async (hid) => {
+    if (!hid) { setLoading(false); return; }
     try {
-      const res = await api.get('/api/doctor/hospital/1');
+      const res = await api.get(`/api/hospital/${hid}/doctors`);
       setDoctors(res.data);
     } catch (err) {
       console.error('Error loading doctors:', err);
@@ -54,6 +57,10 @@ export default function DoctorsPage() {
       setTimeout(() => setMessage(''), 3000);
       return;
     }
+    if (!hospitalId) {
+      setMessage('❌ No hospital linked to this account');
+      return;
+    }
     setSubmitting(true);
     try {
       await api.post('/api/doctor/add', {
@@ -62,13 +69,13 @@ export default function DoctorsPage() {
         email: form.email,
         fee: parseFloat(form.fee),
         experience: form.experience,
-        hospitalId: parseInt(form.hospitalId),
+        hospitalId: parseInt(hospitalId),
         specialtyId: parseInt(form.specialtyId)
       });
       setMessage('✅ Doctor added successfully!');
       setShowForm(false);
-      setForm({ name: '', phone: '', email: '', fee: '', experience: '', hospitalId: '1', specialtyId: '1' });
-      loadDoctors();
+      setForm({ name: '', phone: '', email: '', fee: '', experience: '', specialtyId: '1' });
+      loadDoctors(hospitalId);
     } catch (err) {
       setMessage('❌ Failed to add doctor: ' + (err.response?.data?.message || 'Error'));
     }
@@ -87,7 +94,6 @@ export default function DoctorsPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header */}
       <div className="bg-white shadow-sm px-6 py-4 flex justify-between items-center">
         <div className="flex items-center gap-4">
           <Link href="/dashboard" className="text-blue-600 hover:text-blue-800 text-sm font-medium">
@@ -108,7 +114,6 @@ export default function DoctorsPage() {
 
       <div className="max-w-5xl mx-auto px-6 py-8">
 
-        {/* Message */}
         {message && (
           <div className={`px-4 py-3 rounded-lg mb-6 ${
             message.includes('✅')
@@ -119,7 +124,6 @@ export default function DoctorsPage() {
           </div>
         )}
 
-        {/* Add Doctor Form */}
         {showForm && (
           <div className="bg-white rounded-xl shadow-sm p-6 mb-6 border border-blue-100">
             <h2 className="text-lg font-semibold text-gray-800 mb-5">Add New Doctor</h2>
@@ -209,7 +213,6 @@ export default function DoctorsPage() {
           </div>
         )}
 
-        {/* Doctors List */}
         {loading ? (
           <div className="text-center py-20 text-gray-400">Loading doctors...</div>
         ) : doctors.length === 0 ? (
@@ -221,9 +224,12 @@ export default function DoctorsPage() {
         ) : (
           <div className="grid grid-cols-2 gap-5">
             {doctors.map((doctor, idx) => (
-              <div key={doctor.id} className="bg-white rounded-xl shadow-sm p-5 hover:shadow-md transition-shadow">
+              <Link
+                key={doctor.id}
+                href={`/doctors/${doctor.id}`}
+                className="bg-white rounded-xl shadow-sm p-5 hover:shadow-md transition-shadow block"
+              >
                 <div className="flex items-start gap-4">
-                  {/* Avatar */}
                   <div className="w-14 h-14 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center text-white font-bold text-xl flex-shrink-0">
                     {doctor.name.charAt(0)}
                   </div>
@@ -258,7 +264,7 @@ export default function DoctorsPage() {
                     </div>
                   </div>
                 </div>
-              </div>
+              </Link>
             ))}
           </div>
         )}

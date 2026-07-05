@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import api from '../../lib/api';
@@ -9,7 +9,12 @@ export default function LabPage() {
   const [tests, setTests] = useState([]);
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [searchId, setSearchId] = useState('');
+
+  const [patientQuery, setPatientQuery] = useState('');
+  const [patientResults, setPatientResults] = useState([]);
+  const [showDropdown, setShowDropdown] = useState(false);
+  const [selectedPatientId, setSelectedPatientId] = useState('');
+  const searchTimer = useRef(null);
 
   useEffect(() => {
     const token = localStorage.getItem('authToken');
@@ -27,10 +32,32 @@ export default function LabPage() {
     setLoading(false);
   };
 
-  const searchBookings = async () => {
-    if (!searchId) return;
+  const handlePatientQueryChange = (value) => {
+    setPatientQuery(value);
+    setSelectedPatientId('');
+    if (searchTimer.current) clearTimeout(searchTimer.current);
+    if (value.trim().length < 2) {
+      setPatientResults([]);
+      setShowDropdown(false);
+      return;
+    }
+    searchTimer.current = setTimeout(async () => {
+      try {
+        const res = await api.get(`/api/patient/search?query=${encodeURIComponent(value)}`);
+        setPatientResults(res.data || []);
+        setShowDropdown(true);
+      } catch (err) {
+        console.error('Patient search error:', err);
+      }
+    }, 300);
+  };
+
+  const selectPatient = async (patient) => {
+    setSelectedPatientId(patient.id.toString());
+    setPatientQuery(`${patient.name} (${patient.phone || patient.email})`);
+    setShowDropdown(false);
     try {
-      const res = await api.get(`/api/lab/patient/${searchId}`);
+      const res = await api.get(`/api/lab/patient/${patient.id}`);
       setBookings(res.data);
     } catch (err) {
       setBookings([]);
@@ -71,18 +98,32 @@ export default function LabPage() {
 
           <div className="bg-white rounded-xl shadow-sm p-6">
             <h2 className="text-lg font-semibold text-gray-800 mb-4">Patient Test Bookings</h2>
-            <div className="flex gap-2 mb-4">
-              <input type="number" value={searchId}
-                onChange={(e) => setSearchId(e.target.value)}
-                placeholder="Enter patient ID"
-                className="flex-1 border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" />
-              <button onClick={searchBookings}
-                className="bg-gray-800 text-white px-4 py-2 rounded-lg hover:bg-gray-700">
-                Search
-              </button>
+            <div className="relative mb-4">
+              <input
+                type="text"
+                value={patientQuery}
+                onChange={(e) => handlePatientQueryChange(e.target.value)}
+                onFocus={() => patientResults.length > 0 && setShowDropdown(true)}
+                placeholder="Type patient name to search..."
+                className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+              {showDropdown && patientResults.length > 0 && (
+                <div className="absolute z-10 w-full bg-white border border-gray-200 rounded-lg mt-1 shadow-lg max-h-48 overflow-y-auto">
+                  {patientResults.map((p) => (
+                    <button
+                      key={p.id}
+                      onClick={() => selectPatient(p)}
+                      className="w-full text-left px-4 py-2 hover:bg-blue-50 text-sm border-b border-gray-100 last:border-b-0"
+                    >
+                      <p className="font-medium text-gray-800">{p.name}</p>
+                      <p className="text-xs text-gray-500">{p.phone || p.email} — ID: {p.id}</p>
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
             {bookings.length === 0 ? (
-              <p className="text-gray-400 text-center py-10">Enter patient ID to view bookings</p>
+              <p className="text-gray-400 text-center py-10">Search and select a patient to view bookings</p>
             ) : (
               <div className="space-y-3">
                 {bookings.map((booking) => (

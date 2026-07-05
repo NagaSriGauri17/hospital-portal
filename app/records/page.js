@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import api from '../../lib/api';
@@ -9,6 +9,7 @@ export default function RecordsPage() {
   const [file, setFile] = useState(null);
   const [form, setForm] = useState({
     patientId: '',
+    patientName: '',
     appointmentId: '',
     recordType: 'PRESCRIPTION',
     uploadedBy: 'STAFF'
@@ -18,14 +19,46 @@ export default function RecordsPage() {
   const [records, setRecords] = useState([]);
   const [searchPatientId, setSearchPatientId] = useState('');
 
+  const [patientQuery, setPatientQuery] = useState('');
+  const [patientResults, setPatientResults] = useState([]);
+  const [showDropdown, setShowDropdown] = useState(false);
+  const searchTimer = useRef(null);
+
   useEffect(() => {
     const token = localStorage.getItem('authToken');
     if (!token) { router.push('/'); return; }
   }, []);
 
+  const handlePatientQueryChange = (value) => {
+    setPatientQuery(value);
+    setForm({ ...form, patientId: '', patientName: '' });
+    if (searchTimer.current) clearTimeout(searchTimer.current);
+    if (value.trim().length < 2) {
+      setPatientResults([]);
+      setShowDropdown(false);
+      return;
+    }
+    searchTimer.current = setTimeout(async () => {
+      try {
+        const res = await api.get(`/api/patient/search?query=${encodeURIComponent(value)}`);
+        setPatientResults(res.data || []);
+        setShowDropdown(true);
+      } catch (err) {
+        console.error('Patient search error:', err);
+        setPatientResults([]);
+      }
+    }, 300);
+  };
+
+  const selectPatient = (patient) => {
+    setForm({ ...form, patientId: patient.id.toString(), patientName: patient.name });
+    setPatientQuery(`${patient.name} (${patient.phone || patient.email})`);
+    setShowDropdown(false);
+  };
+
   const handleUpload = async () => {
     if (!file || !form.patientId || !form.appointmentId) {
-      setMessage('❌ Please fill all fields and select a file');
+      setMessage('❌ Please select a patient, enter appointment ID, and select a file');
       return;
     }
     setLoading(true);
@@ -42,7 +75,8 @@ export default function RecordsPage() {
       });
       setMessage('✅ Record uploaded successfully to patient health locker');
       setFile(null);
-      setForm({ patientId: '', appointmentId: '', recordType: 'PRESCRIPTION', uploadedBy: 'STAFF' });
+      setForm({ patientId: '', patientName: '', appointmentId: '', recordType: 'PRESCRIPTION', uploadedBy: 'STAFF' });
+      setPatientQuery('');
     } catch (err) {
       setMessage('❌ Upload failed: ' + (err.response?.data || 'Error'));
     }
@@ -60,7 +94,7 @@ export default function RecordsPage() {
     }
   };
 
-  const getDownloadUrl = async (recordId, fileName) => {
+  const getDownloadUrl = async (recordId) => {
     try {
       const res = await api.get(`/api/records/download/${recordId}`);
       window.open(res.data.downloadUrl, '_blank');
@@ -90,16 +124,36 @@ export default function RecordsPage() {
 
         <div className="grid grid-cols-2 gap-6">
 
-          {/* Upload section */}
           <div className="bg-white rounded-xl shadow-sm p-6">
             <h2 className="text-lg font-semibold text-gray-800 mb-4">Upload Record</h2>
             <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Patient ID</label>
-                <input type="number" value={form.patientId}
-                  onChange={(e) => setForm({...form, patientId: e.target.value})}
-                  placeholder="Enter patient ID"
-                  className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+              <div className="relative">
+                <label className="block text-sm font-medium text-gray-700 mb-2">Patient Name</label>
+                <input
+                  type="text"
+                  value={patientQuery}
+                  onChange={(e) => handlePatientQueryChange(e.target.value)}
+                  onFocus={() => patientResults.length > 0 && setShowDropdown(true)}
+                  placeholder="Type patient name to search..."
+                  className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+                {showDropdown && patientResults.length > 0 && (
+                  <div className="absolute z-10 w-full bg-white border border-gray-200 rounded-lg mt-1 shadow-lg max-h-48 overflow-y-auto">
+                    {patientResults.map((p) => (
+                      <button
+                        key={p.id}
+                        onClick={() => selectPatient(p)}
+                        className="w-full text-left px-4 py-2 hover:bg-blue-50 text-sm border-b border-gray-100 last:border-b-0"
+                      >
+                        <p className="font-medium text-gray-800">{p.name}</p>
+                        <p className="text-xs text-gray-500">{p.phone || p.email} — ID: {p.id}</p>
+                      </button>
+                    ))}
+                  </div>
+                )}
+                {form.patientId && (
+                  <p className="text-xs text-green-600 mt-1">✓ Selected patient ID: {form.patientId}</p>
+                )}
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Appointment ID</label>
@@ -130,7 +184,6 @@ export default function RecordsPage() {
             </div>
           </div>
 
-          {/* Search records section */}
           <div className="bg-white rounded-xl shadow-sm p-6">
             <h2 className="text-lg font-semibold text-gray-800 mb-4">View Patient Records</h2>
             <div className="flex gap-2 mb-4">
@@ -153,7 +206,7 @@ export default function RecordsPage() {
                       <p className="font-medium text-sm text-gray-800">{record.fileName}</p>
                       <p className="text-xs text-gray-500">{record.recordType} • {record.uploadedAt?.split('T')[0]}</p>
                     </div>
-                    <button onClick={() => getDownloadUrl(record.id, record.fileName)}
+                    <button onClick={() => getDownloadUrl(record.id)}
                       className="text-xs bg-blue-600 text-white px-3 py-2 rounded-lg hover:bg-blue-700">
                       Download
                     </button>
