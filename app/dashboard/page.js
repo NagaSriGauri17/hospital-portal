@@ -9,7 +9,8 @@ export default function Dashboard() {
   const [stats, setStats] = useState({
     todayAppointments: 0,
     currentToken: 0,
-    waitingCount: 0
+    waitingCount: 0,
+    completedCount: 0
   });
   const [doctors, setDoctors] = useState([]);
   const [selectedDoctorId, setSelectedDoctorId] = useState('');
@@ -42,7 +43,8 @@ export default function Dashboard() {
       setStats({
         todayAppointments: apptRes.data.length,
         currentToken: queueRes.data.currentToken,
-        waitingCount: queueRes.data.waitingCount
+        waitingCount: queueRes.data.waitingCount,
+        completedCount: queueRes.data.completedCount || 0
       });
       setDoctors(doctorsRes.data || []);
       if (doctorsRes.data && doctorsRes.data.length > 0) {
@@ -116,7 +118,7 @@ export default function Dashboard() {
 
       <div className="max-w-6xl mx-auto px-6 py-8">
 
-        <div className="grid grid-cols-3 gap-6 mb-8">
+        <div className="grid grid-cols-4 gap-6 mb-8">
           <div className="bg-white rounded-xl p-6 shadow-sm border-l-4 border-blue-500">
             <p className="text-gray-500 text-sm">Today's Appointments</p>
             <p className="text-3xl font-bold text-blue-600 mt-1">{stats.todayAppointments}</p>
@@ -128,6 +130,10 @@ export default function Dashboard() {
           <div className="bg-white rounded-xl p-6 shadow-sm border-l-4 border-orange-500">
             <p className="text-gray-500 text-sm">Waiting Patients (all doctors)</p>
             <p className="text-3xl font-bold text-orange-600 mt-1">{stats.waitingCount}</p>
+          </div>
+          <div className="bg-white rounded-xl p-6 shadow-sm border-l-4 border-purple-500">
+            <p className="text-gray-500 text-sm">Completed Today (all doctors)</p>
+            <p className="text-3xl font-bold text-purple-600 mt-1">{stats.completedCount}</p>
           </div>
         </div>
 

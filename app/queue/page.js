@@ -7,16 +7,19 @@ import api from '../../lib/api';
 export default function QueuePage() {
   const router = useRouter();
   const [doctors, setDoctors] = useState([]);
-  const [selectedDoctorId, setSelectedDoctorId] = useState(''); // '' = All Doctors
+  const [selectedDoctorId, setSelectedDoctorId] = useState('');
   const [queue, setQueue] = useState({
     currentToken: 0,
     waitingCount: 0,
     estimatedWaitMinutes: 0,
     waitingTokens: []
   });
+  const [pendingCheckins, setPendingCheckins] = useState([]);
+  const [completedList, setCompletedList] = useState([]);
   const [allDoctorsSummary, setAllDoctorsSummary] = useState([]);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
+  const [checkinLoadingId, setCheckinLoadingId] = useState(null);
   const [message, setMessage] = useState('');
   const [lastUpdated, setLastUpdated] = useState(null);
   const intervalRef = useRef(null);
@@ -92,8 +95,14 @@ export default function QueuePage() {
 
   const loadSingleDoctorQueue = async (doctorId) => {
     try {
-      const res = await api.get(`/api/queue/status/${doctorId}`);
-      setQueue(res.data);
+      const [statusRes, pendingRes, boardRes] = await Promise.all([
+        api.get(`/api/queue/status/${doctorId}`),
+        api.get(`/api/queue/pending-checkins/${doctorId}`),
+        api.get(`/api/queue/board/${doctorId}`)
+      ]);
+      setQueue(statusRes.data);
+      setPendingCheckins(pendingRes.data || []);
+      setCompletedList((boardRes.data && boardRes.data.completed) || []);
       setLastUpdated(new Date());
     } catch (err) {
       console.error('Queue load error:', err);
@@ -103,15 +112,13 @@ export default function QueuePage() {
   const handleDoctorSelect = async (doctorId) => {
     setSelectedDoctorId(doctorId);
     setMessage('');
+    setLoading(true);
     if (doctorId) {
-      setLoading(true);
       await loadSingleDoctorQueue(doctorId);
-      setLoading(false);
     } else {
-      setLoading(true);
       await loadAllDoctorsSummary(doctors);
-      setLoading(false);
     }
+    setLoading(false);
   };
 
   const handleNext = async () => {
@@ -143,19 +150,15 @@ export default function QueuePage() {
   };
 
   const handleCheckin = async (appointmentId) => {
-    setActionLoading(true);
+    setCheckinLoadingId(appointmentId);
     try {
       const res = await api.post(`/api/queue/checkin/${appointmentId}`);
       setMessage(`✅ Token ${res.data.tokenNumber} assigned to patient`);
-      if (selectedDoctorId) {
-        loadSingleDoctorQueue(selectedDoctorId);
-      } else {
-        loadAllDoctorsSummary(doctors);
-      }
+      loadSingleDoctorQueue(selectedDoctorId);
     } catch (err) {
       setMessage('❌ Check-in failed: ' + (err.response?.data?.message || 'Error'));
     }
-    setActionLoading(false);
+    setCheckinLoadingId(null);
     setTimeout(() => setMessage(''), 3000);
   };
 
@@ -193,7 +196,6 @@ export default function QueuePage() {
 
       <div className="max-w-4xl mx-auto px-6 py-8">
 
-        {/* Doctor selector */}
         <div className="bg-white rounded-xl shadow-sm p-4 mb-6 flex items-center gap-4">
           <label className="text-sm font-medium text-gray-700 whitespace-nowrap">Viewing:</label>
           <select
@@ -219,7 +221,6 @@ export default function QueuePage() {
         {loading ? (
           <div className="text-center py-20 text-gray-400">Loading queue data...</div>
         ) : !selectedDoctorId ? (
-          /* ── ALL DOCTORS VIEW ── */
           <div className="bg-white rounded-xl shadow-sm p-6">
             <div className="flex justify-between items-center mb-5">
               <h2 className="text-lg font-semibold text-gray-800">All Doctors — Queue Overview</h2>
@@ -268,7 +269,6 @@ export default function QueuePage() {
             )}
           </div>
         ) : (
-          /* ── SINGLE DOCTOR VIEW ── */
           <>
             <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-6 flex items-center justify-between">
               <div className="flex items-center gap-3">
@@ -348,37 +348,64 @@ export default function QueuePage() {
               )}
             </div>
 
+            {/* Pending check-ins — replaces the old manual ID entry box */}
+            <div className="bg-white rounded-xl shadow-sm p-6 mb-6">
+              <h2 className="text-lg font-semibold text-gray-800 mb-1">Today's Bookings — Awaiting Check-in</h2>
+              <p className="text-sm text-gray-500 mb-4">Patients booked for today who haven't been checked in yet</p>
+              {pendingCheckins.length === 0 ? (
+                <p className="text-gray-400 text-center py-6">No pending check-ins for today</p>
+              ) : (
+                <div className="space-y-2">
+                  {pendingCheckins.map((p) => (
+                    <div key={p.appointmentId} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                      <div className="flex items-center gap-3">
+                        <div className="w-9 h-9 rounded-full bg-gray-200 flex items-center justify-center text-gray-600 font-bold text-sm">
+                          {p.patientName?.charAt(0) || 'P'}
+                        </div>
+                        <div>
+                          <p className="font-medium text-gray-800 text-sm">{p.patientName}</p>
+                          <p className="text-xs text-gray-500">ID #{p.appointmentId} • {p.patientPhone || 'no phone'} • {p.slotTime}</p>
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => handleCheckin(p.appointmentId)}
+                        disabled={checkinLoadingId === p.appointmentId}
+                        className="text-xs bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50 font-medium"
+                      >
+                        {checkinLoadingId === p.appointmentId ? 'Checking in...' : '✓ Check In'}
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Completed today */}
             <div className="bg-white rounded-xl shadow-sm p-6">
-              <h2 className="text-lg font-semibold text-gray-800 mb-4">Check-in Patient</h2>
-              <CheckinForm onCheckin={handleCheckin} loading={actionLoading} />
+              <h2 className="text-lg font-semibold text-gray-800 mb-1">Completed Today</h2>
+              <p className="text-sm text-gray-500 mb-4">Patients already checked out</p>
+              {completedList.length === 0 ? (
+                <p className="text-gray-400 text-center py-6">No patients completed yet today</p>
+              ) : (
+                <div className="space-y-2">
+                  {completedList.map((p, i) => (
+                    <div key={i} className="flex items-center gap-3 p-3 bg-green-50 border border-green-100 rounded-lg">
+                      <div className="w-9 h-9 rounded-full bg-green-200 flex items-center justify-center text-green-700 font-bold text-sm">
+                        {p.patientName?.charAt(0) || 'P'}
+                      </div>
+                      <div>
+                        <p className="font-medium text-gray-800 text-sm">{p.patientName || 'Patient'}</p>
+                        <p className="text-xs text-gray-500">ID #{p.appointmentId} • {p.patientPhone || 'no phone'}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </>
         )}
 
       </div>
-    </div>
-  );
-}
-
-function CheckinForm({ onCheckin, loading }) {
-  const [appointmentId, setAppointmentId] = useState('');
-
-  return (
-    <div className="flex gap-3">
-      <input
-        type="number"
-        value={appointmentId}
-        onChange={(e) => setAppointmentId(e.target.value)}
-        placeholder="Enter Appointment ID"
-        className="flex-1 border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500"
-      />
-      <button
-        onClick={() => { onCheckin(appointmentId); setAppointmentId(''); }}
-        disabled={loading || !appointmentId}
-        className="bg-blue-600 text-white px-6 py-3 rounded-lg font-medium hover:bg-blue-700 disabled:opacity-50"
-      >
-        Check In
-      </button>
     </div>
   );
 }
