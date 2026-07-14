@@ -314,7 +314,7 @@ export default function QueuePage() {
                   disabled={actionLoading}
                   className="flex-1 bg-green-600 text-white py-4 rounded-xl font-semibold text-lg hover:bg-green-700 disabled:opacity-50"
                 >
-                  ✅ Next Patient
+                  ✅ Complete & Call Next
                 </button>
                 <button
                   onClick={handleSkip}
