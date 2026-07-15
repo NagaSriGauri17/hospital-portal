@@ -2,9 +2,10 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import api from '../lib/api';
-
+import { useLanguage } from '../context/LanguageContext';
 export default function LoginPage() {
   const router = useRouter();
+  const { language, setLanguage, t } = useLanguage();
   const [mode, setMode] = useState('login'); // login | signup | forgot
   const [step, setStep] = useState(1);
   const [identifier, setIdentifier] = useState('');
@@ -212,8 +213,24 @@ export default function LoginPage() {
       <div className="bg-white p-8 rounded-2xl shadow-lg w-full max-w-md">
 
         {/* Header */}
+        {/* Language switcher */}
+        <div className="flex justify-center gap-2 mb-4">
+          {['en', 'hi', 'te'].map((code) => (
+            <button
+              key={code}
+              onClick={() => setLanguage(code)}
+              className={`text-xs px-3 py-1 rounded-full font-medium ${
+                language === code ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-600'
+              }`}
+            >
+              {code === 'en' ? 'EN' : code === 'hi' ? 'हि' : 'తె'}
+            </button>
+          ))}
+        </div>
+
+        {/* Header */}
         <div className="text-center mb-6">
-          <h1 className="text-3xl font-bold text-blue-600">🏥 HealthCare</h1>
+          <h1 className="text-3xl font-bold text-blue-600">🏥 {t('appName')}</h1>
           <p className="text-gray-500 mt-1">Hospital Staff Portal</p>
         </div>
 
