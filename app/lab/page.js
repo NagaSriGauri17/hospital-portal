@@ -129,10 +129,16 @@ export default function LabPage() {
     }, 300);
   };
 
-  const selectPatientForBooking = (patient) => {
-    setSelectedPatient(patient);
-    setBookPatientQuery(`${patient.name} (${patient.phone || 'no phone'})`);
-    setBookShowDropdown(false);
+  const selectPatient = async (patient) => {
+    setForm({ ...form, patientId: patient.id.toString(), patientName: patient.name });
+    setShowDropdown(false);
+    const hospitalId = localStorage.getItem('hospitalId');
+    try {
+      const res = await api.get(`/api/patient/code?hospitalId=${hospitalId}&userId=${patient.id}`);
+      setPatientQuery(`${patient.name} (${res.data}) — ${patient.phone || patient.email}`);
+    } catch (err) {
+      setPatientQuery(`${patient.name} (${patient.phone || patient.email})`);
+    }
   };
 
   const proceedToPayment = () => {
