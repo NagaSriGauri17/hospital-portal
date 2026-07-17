@@ -170,7 +170,7 @@ export default function Dashboard() {
 
         <div className="bg-white rounded-xl shadow-sm p-6">
           <div className="flex justify-between items-center mb-5">
-            <h2 className="text-lg font-semibold text-gray-800">Live Queue</h2>
+            <h2 className="text-lg font-semibold text-gray-800">{t('liveQueue')}</h2>
             <select
               value={selectedDoctorId}
               onChange={(e) => handleDoctorSelect(e.target.value)}
@@ -193,17 +193,17 @@ export default function Dashboard() {
               <div>
                 <div className="flex items-center gap-2 mb-3">
                   <span className="w-2.5 h-2.5 bg-blue-500 rounded-full"></span>
-                  <h3 className="font-semibold text-gray-700 text-sm uppercase tracking-wide">In Progress</h3>
+                  <h3 className="font-semibold text-gray-700 text-sm uppercase tracking-wide">{t('inProgress')}</h3>
                   <span className="text-xs text-gray-400">({board.inProgress.length})</span>
                 </div>
                 <div className="space-y-2">
                   {board.inProgress.length === 0 ? (
-                    <p className="text-gray-400 text-xs text-center py-6 bg-gray-50 rounded-lg">No one currently in progress</p>
+                    <p className="text-gray-400 text-xs text-center py-6 bg-gray-50 rounded-lg">{t('noOneInProgress')}</p>
                   ) : (
                     board.inProgress.map((p, i) => (
                       <div key={i} className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
                         <p className="font-medium text-gray-800 text-sm">Token #{p.tokenNumber}</p>
-                        <p className="text-xs text-gray-600">{p.patientName || 'Patient'}</p>
+                        <p className="text-xs text-gray-600">{p.patientName || t('patient')}</p>
                       </div>
                     ))
                   )}
@@ -213,17 +213,17 @@ export default function Dashboard() {
               <div>
                 <div className="flex items-center gap-2 mb-3">
                   <span className="w-2.5 h-2.5 bg-orange-500 rounded-full"></span>
-                  <h3 className="font-semibold text-gray-700 text-sm uppercase tracking-wide">Next / Waiting</h3>
+                  <h3 className="font-semibold text-gray-700 text-sm uppercase tracking-wide">{t('nextWaiting')}</h3>
                   <span className="text-xs text-gray-400">({board.waiting.length})</span>
                 </div>
                 <div className="space-y-2">
                   {board.waiting.length === 0 ? (
-                    <p className="text-gray-400 text-xs text-center py-6 bg-gray-50 rounded-lg">No one waiting</p>
+                    <p className="text-gray-400 text-xs text-center py-6 bg-gray-50 rounded-lg">{t('noOneWaiting')}</p>
                   ) : (
                     board.waiting.map((p, i) => (
                       <div key={i} className="p-3 bg-orange-50 border border-orange-200 rounded-lg">
                         <p className="font-medium text-gray-800 text-sm">Token #{p.tokenNumber}</p>
-                        <p className="text-xs text-gray-600">{p.patientName || 'Patient'}</p>
+                        <p className="text-xs text-gray-600">{p.patientName || t('patient')}</p>
                       </div>
                     ))
                   )}
@@ -233,17 +233,17 @@ export default function Dashboard() {
               <div>
                 <div className="flex items-center gap-2 mb-3">
                   <span className="w-2.5 h-2.5 bg-green-500 rounded-full"></span>
-                  <h3 className="font-semibold text-gray-700 text-sm uppercase tracking-wide">Completed</h3>
+                  <h3 className="font-semibold text-gray-700 text-sm uppercase tracking-wide">{t('completed')}</h3>
                   <span className="text-xs text-gray-400">({board.completed.length})</span>
                 </div>
                 <div className="space-y-2">
                   {board.completed.length === 0 ? (
-                    <p className="text-gray-400 text-xs text-center py-6 bg-gray-50 rounded-lg">No one checked out yet</p>
+                    <p className="text-gray-400 text-xs text-center py-6 bg-gray-50 rounded-lg">{t('noOneCompleted')}</p>
                   ) : (
                     board.completed.map((p, i) => (
                       <div key={i} className="p-3 bg-green-50 border border-green-200 rounded-lg">
                         <p className="font-medium text-gray-800 text-sm">Token #{p.tokenNumber}</p>
-                        <p className="text-xs text-gray-600">{p.patientName || 'Patient'}</p>
+                        <p className="text-xs text-gray-600">{p.patientName || t('patient')}</p>
                       </div>
                     ))
                   )}
