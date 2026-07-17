@@ -3,9 +3,11 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import api from '../../lib/api';
 import Link from 'next/link';
+import { useLanguage } from '../../context/LanguageContext';
 
 export default function Dashboard() {
   const router = useRouter();
+  const { language, setLanguage, t } = useLanguage();
   const [stats, setStats] = useState({
     todayAppointments: 0,
     currentToken: 0,
@@ -84,17 +86,17 @@ export default function Dashboard() {
   };
 
   const navItems = [
-    { label: 'Queue Management', icon: '🎫', href: '/queue', color: 'bg-green-50 border-green-200' },
-    { label: 'Appointments', icon: '📅', href: '/appointments', color: 'bg-blue-50 border-blue-200' },
-    { label: 'Walk-in Booking', icon: '🚶', href: '/walkin', color: 'bg-purple-50 border-purple-200' },
-    { label: 'Upload Records', icon: '📁', href: '/records', color: 'bg-yellow-50 border-yellow-200' },
-    { label: 'Schedule Setup', icon: '🗓', href: '/schedule', color: 'bg-indigo-50 border-indigo-200' },
-    { label: 'Doctors', icon: '👨‍⚕️', href: '/doctors', color: 'bg-teal-50 border-teal-200' },
-    { label: 'Lab Tests', icon: '🧪', href: '/lab', color: 'bg-red-50 border-red-200' },
-    { label: 'Emergency', icon: '🚨', href: '/emergency', color: 'bg-orange-50 border-orange-200' },
-    { label: 'Insurance', icon: '🛡', href: '/insurance', color: 'bg-pink-50 border-pink-200' },
-    { label: 'Payments', icon: '💰', href: '/payments', color: 'bg-emerald-50 border-emerald-200' },
-    { label: 'Reviews', icon: '⭐', href: '/reviews', color: 'bg-amber-50 border-amber-200' },
+    { label: t('queueManagement'), icon: '🎫', href: '/queue', color: 'bg-green-50 border-green-200' },
+    { label: t('appointments'), icon: '📅', href: '/appointments', color: 'bg-blue-50 border-blue-200' },
+    { label: t('walkinBooking'), icon: '🚶', href: '/walkin', color: 'bg-purple-50 border-purple-200' },
+    { label: t('uploadRecords'), icon: '📁', href: '/records', color: 'bg-yellow-50 border-yellow-200' },
+    { label: t('scheduleSetup'), icon: '🗓', href: '/schedule', color: 'bg-indigo-50 border-indigo-200' },
+    { label: t('doctors'), icon: '👨‍⚕️', href: '/doctors', color: 'bg-teal-50 border-teal-200' },
+    { label: t('labTests'), icon: '🧪', href: '/lab', color: 'bg-red-50 border-red-200' },
+    { label: t('emergency'), icon: '🚨', href: '/emergency', color: 'bg-orange-50 border-orange-200' },
+    { label: t('insurance'), icon: '🛡', href: '/insurance', color: 'bg-pink-50 border-pink-200' },
+    { label: t('payments'), icon: '💰', href: '/payments', color: 'bg-emerald-50 border-emerald-200' },
+    { label: t('reviews'), icon: '⭐', href: '/reviews', color: 'bg-amber-50 border-amber-200' },
   ];
 
   if (loading) {
@@ -108,10 +110,23 @@ export default function Dashboard() {
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="bg-white shadow-sm px-6 py-4 flex justify-between items-center">
-        <h1 className="text-xl font-bold text-blue-600">🏥 Hospital Portal</h1>
+        <h1 className="text-xl font-bold text-blue-600">🏥 {t('appName')}</h1>
         <div className="flex gap-4 items-center">
+          <div className="flex gap-1">
+            {['en', 'hi', 'te'].map((code) => (
+              <button
+                key={code}
+                onClick={() => setLanguage(code)}
+                className={`text-xs px-2.5 py-1 rounded-full font-medium ${
+                  language === code ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-600'
+                }`}
+              >
+                {code === 'en' ? 'EN' : code === 'hi' ? 'हि' : 'తె'}
+              </button>
+            ))}
+          </div>
           <button onClick={logout} className="text-red-500 text-sm hover:text-red-700">
-            Logout
+            {t('logout')}
           </button>
         </div>
       </div>
@@ -175,7 +190,6 @@ export default function Dashboard() {
             <p className="text-gray-400 text-center py-8">Loading queue...</p>
           ) : (
             <div className="grid grid-cols-3 gap-4">
-              {/* In Progress */}
               <div>
                 <div className="flex items-center gap-2 mb-3">
                   <span className="w-2.5 h-2.5 bg-blue-500 rounded-full"></span>
@@ -196,7 +210,6 @@ export default function Dashboard() {
                 </div>
               </div>
 
-              {/* Next / Waiting */}
               <div>
                 <div className="flex items-center gap-2 mb-3">
                   <span className="w-2.5 h-2.5 bg-orange-500 rounded-full"></span>
@@ -217,7 +230,6 @@ export default function Dashboard() {
                 </div>
               </div>
 
-              {/* Completed */}
               <div>
                 <div className="flex items-center gap-2 mb-3">
                   <span className="w-2.5 h-2.5 bg-green-500 rounded-full"></span>
