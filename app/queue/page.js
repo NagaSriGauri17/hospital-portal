@@ -364,7 +364,7 @@ export default function QueuePage() {
                         </div>
                         <div>
                           <p className="font-medium text-gray-800 text-sm">{p.patientName}</p>
-                          <p className="text-xs text-gray-500">ID #{p.appointmentId} • {p.patientPhone || 'no phone'} • {p.slotTime}</p>
+                          <p className="text-xs text-gray-500">{p.displayId || `ID #${p.appointmentId}`} • {p.patientPhone || 'no phone'} • {p.slotTime}</p>
                         </div>
                       </div>
                       <button
