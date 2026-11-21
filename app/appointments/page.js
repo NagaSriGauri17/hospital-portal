@@ -32,7 +32,7 @@ const res = await api.get(`/api/hospital/${hospitalId}/appointments/today`);
 
   const markCompleted = async (id) => {
     try {
-      await api.put(`/api/booking/${id}/reschedule`, { status: 'COMPLETED' });
+      await api.post(`/api/booking/${id}/complete`);
       setMessage(t('appointments.msg.completed'));
       loadAppointments();
     } catch (err) {

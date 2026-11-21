@@ -5,6 +5,11 @@ import Link from 'next/link';
 import api from '../../lib/api';
 import { useLanguage } from '../../context/LanguageContext';
 
+// An appointment counts as revenue once it is paid or the treatment is completed
+const isPaid = (a) =>
+  a.paymentStatus !== 'REFUNDED' && a.status !== 'CANCELLED' &&
+  (a.paymentStatus === 'PAID' || a.status === 'COMPLETED');
+
 export default function PaymentsPage() {
   const router = useRouter();
   const { t } = useLanguage();
@@ -19,8 +24,16 @@ export default function PaymentsPage() {
 
   const loadPayments = async () => {
     try {
-      const res = await api.get('/api/booking/doctor/1');
-      setAppointments(res.data.filter(a => a.paymentStatus === 'PAID' || a.amount > 0));
+      const hospitalId = localStorage.getItem('hospitalId');
+      if (!hospitalId) { setLoading(false); return; }
+      // All appointments of every doctor in this hospital
+      const res = await api.get(`/api/hospital/${hospitalId}/appointments/today`);
+      const list = Array.isArray(res.data) ? res.data : [];
+      // Transactions = money actually received (treatment completed / paid) or refunded
+      const txns = list.filter(a => a.status !== 'CANCELLED' || a.paymentStatus === 'REFUNDED')
+        .filter(a => isPaid(a) || a.paymentStatus === 'REFUNDED');
+      txns.sort((a, b) => (b.id || 0) - (a.id || 0));
+      setAppointments(txns);
     } catch (err) {
       console.error('Error:', err);
     }
@@ -36,7 +49,8 @@ export default function PaymentsPage() {
     }
   };
 
-  const totalRevenue = appointments.reduce((sum, a) => sum + (a.amount || 0), 0);
+  const paidList = appointments.filter(isPaid);
+  const totalRevenue = paidList.reduce((sum, a) => sum + (a.amount || 0), 0);
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -53,12 +67,12 @@ export default function PaymentsPage() {
           </div>
           <div className="bg-white rounded-xl p-6 shadow-sm border-l-4 border-blue-500">
             <p className="text-gray-500 text-sm">{t('payments.totalTransactions')}</p>
-            <p className="text-3xl font-bold text-blue-600 mt-1">{appointments.length}</p>
+            <p className="text-3xl font-bold text-blue-600 mt-1">{paidList.length}</p>
           </div>
           <div className="bg-white rounded-xl p-6 shadow-sm border-l-4 border-orange-500">
             <p className="text-gray-500 text-sm">{t('payments.avgPerPatient')}</p>
             <p className="text-3xl font-bold text-orange-600 mt-1">
-              ₹{appointments.length > 0 ? Math.round(totalRevenue / appointments.length) : 0}
+              ₹{paidList.length > 0 ? Math.round(totalRevenue / paidList.length) : 0}
             </p>
           </div>
         </div>
@@ -69,19 +83,22 @@ export default function PaymentsPage() {
             <p className="text-center text-gray-400 py-8">{t('payments.loading')}</p>
           ) : (
             <div className="space-y-3">
+              {appointments.length === 0 && (
+                <p className="text-center text-gray-400 py-8">{t('payments.empty')}</p>
+              )}
               {appointments.map((apt) => (
                 <div key={apt.id} className="flex justify-between items-center p-4 bg-gray-50 rounded-lg">
                   <div>
                     <p className="font-medium text-gray-800">{apt.user?.name || t('payments.patient')}</p>
-                    <p className="text-sm text-gray-500">{apt.slot?.date} • {apt.orderId}</p>
+                    <p className="text-sm text-gray-500">{apt.slot?.date} • {apt.orderId}{apt.doctor?.name ? ` • ${apt.doctor.name}` : ''}</p>
                   </div>
                   <div className="text-right">
                     <p className="font-bold text-gray-800">₹{apt.amount}</p>
                     <span className={`text-xs px-2 py-1 rounded-full ${
-                      apt.paymentStatus === 'PAID' ? 'bg-green-100 text-green-700' :
                       apt.paymentStatus === 'REFUNDED' ? 'bg-red-100 text-red-700' :
+                      isPaid(apt) ? 'bg-green-100 text-green-700' :
                       'bg-yellow-100 text-yellow-700'}`}>
-                      {statusLabel(apt.paymentStatus)}
+                      {statusLabel(apt.paymentStatus === 'REFUNDED' ? 'REFUNDED' : isPaid(apt) ? 'PAID' : apt.paymentStatus)}
                     </span>
                   </div>
                 </div>
