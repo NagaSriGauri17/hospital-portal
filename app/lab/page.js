@@ -143,6 +143,12 @@ export default function LabPage() {
     }
   };
 
+  const selectPatientForBooking = (patient) => {
+    setSelectedPatient(patient);
+    setBookPatientQuery(`${patient.name} (${patient.phone || patient.email || ''})`);
+    setBookShowDropdown(false);
+  };
+
   const proceedToPayment = () => {
     if (!selectedPatient) {
       setMessage(t('lab.selectPatientFirst'));
