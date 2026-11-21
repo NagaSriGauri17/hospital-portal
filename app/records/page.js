@@ -3,9 +3,11 @@ import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import api from '../../lib/api';
+import { useLanguage } from '../../context/LanguageContext';
 
 export default function RecordsPage() {
   const router = useRouter();
+  const { t } = useLanguage();
   const [file, setFile] = useState(null);
   const [form, setForm] = useState({
     patientId: '',
@@ -64,7 +66,7 @@ export default function RecordsPage() {
 
   const handleUpload = async () => {
     if (!file || !form.patientId || !form.appointmentId) {
-      setMessage('❌ Please select a patient, enter appointment ID, and select a file');
+      setMessage(t('records.msg.missing'));
       return;
     }
     setLoading(true);
@@ -79,12 +81,12 @@ export default function RecordsPage() {
       await api.post('/api/records/upload', formData, {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
-      setMessage('✅ Record uploaded successfully to patient health locker');
+      setMessage(t('records.msg.success'));
       setFile(null);
       setForm({ patientId: '', patientName: '', appointmentId: '', recordType: 'PRESCRIPTION', uploadedBy: 'STAFF' });
       setPatientQuery('');
     } catch (err) {
-      setMessage('❌ Upload failed: ' + (err.response?.data || 'Error'));
+      setMessage(t('records.msg.uploadFailed', { error: err.response?.data || t('records.msg.errorFallback') }));
     }
     setLoading(false);
     setTimeout(() => setMessage(''), 5000);
@@ -96,7 +98,7 @@ export default function RecordsPage() {
       const res = await api.get(`/api/records/patient/${searchPatientId}`);
       setRecords(res.data);
     } catch (err) {
-      setMessage('❌ No records found for this patient');
+      setMessage(t('records.msg.noRecords'));
     }
   };
 
@@ -105,17 +107,25 @@ export default function RecordsPage() {
       const res = await api.get(`/api/records/download/${recordId}`);
       window.open(res.data.downloadUrl, '_blank');
     } catch (err) {
-      setMessage('❌ Failed to get download link');
+      setMessage(t('records.msg.downloadFailed'));
     }
   };
 
   const recordTypes = ['PRESCRIPTION', 'BLOOD_REPORT', 'XRAY', 'MRI', 'CT_SCAN', 'DISCHARGE_SUMMARY'];
+  const typeLabels = {
+    PRESCRIPTION: t('records.type.PRESCRIPTION'),
+    BLOOD_REPORT: t('records.type.BLOOD_REPORT'),
+    XRAY: t('records.type.XRAY'),
+    MRI: t('records.type.MRI'),
+    CT_SCAN: t('records.type.CT_SCAN'),
+    DISCHARGE_SUMMARY: t('records.type.DISCHARGE_SUMMARY'),
+  };
 
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="bg-white shadow-sm px-6 py-4 flex items-center gap-4">
-        <Link href="/dashboard" className="text-blue-600 hover:text-blue-800">← Back</Link>
-        <h1 className="text-xl font-bold text-gray-800">📁 Health Records</h1>
+        <Link href="/dashboard" className="text-blue-600 hover:text-blue-800">{t('records.back')}</Link>
+        <h1 className="text-xl font-bold text-gray-800">{t('records.title')}</h1>
       </div>
 
       <div className="max-w-4xl mx-auto px-6 py-8">
@@ -131,16 +141,16 @@ export default function RecordsPage() {
         <div className="grid grid-cols-2 gap-6">
 
           <div className="bg-white rounded-xl shadow-sm p-6">
-            <h2 className="text-lg font-semibold text-gray-800 mb-4">Upload Record</h2>
+            <h2 className="text-lg font-semibold text-gray-800 mb-4">{t('records.uploadRecord')}</h2>
             <div className="space-y-4">
               <div className="relative">
-                <label className="block text-sm font-medium text-gray-700 mb-2">Patient Name</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">{t('records.patientName')}</label>
                 <input
                   type="text"
                   value={patientQuery}
                   onChange={(e) => handlePatientQueryChange(e.target.value)}
                   onFocus={() => patientResults.length > 0 && setShowDropdown(true)}
-                  placeholder="Type patient name to search..."
+                  placeholder={t('records.searchPlaceholder')}
                   className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
                 {showDropdown && patientResults.length > 0 && (
@@ -152,69 +162,69 @@ export default function RecordsPage() {
                         className="w-full text-left px-4 py-2 hover:bg-blue-50 text-sm border-b border-gray-100 last:border-b-0"
                       >
                         <p className="font-medium text-gray-800">{p.name}</p>
-                        <p className="text-xs text-gray-500">{p.phone || p.email} — ID: {p.id}</p>
+                        <p className="text-xs text-gray-500">{p.phone || p.email} — {t('records.idLabel', { id: p.id })}</p>
                       </button>
                     ))}
                   </div>
                 )}
                 {form.patientId && (
-                  <p className="text-xs text-green-600 mt-1">✓ Selected patient ID: {form.patientId}</p>
+                  <p className="text-xs text-green-600 mt-1">{t('records.selectedPatientId', { id: form.patientId })}</p>
                 )}
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Appointment ID</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">{t('records.appointmentId')}</label>
                 <input type="number" value={form.appointmentId}
                   onChange={(e) => setForm({...form, appointmentId: e.target.value})}
-                  placeholder="Enter appointment ID"
+                  placeholder={t('records.appointmentIdPlaceholder')}
                   className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Record Type</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">{t('records.recordType')}</label>
                 <select value={form.recordType}
                   onChange={(e) => setForm({...form, recordType: e.target.value})}
                   className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
-                  {recordTypes.map(t => <option key={t} value={t}>{t.replace('_', ' ')}</option>)}
+                  {recordTypes.map(rt => <option key={rt} value={rt}>{typeLabels[rt]}</option>)}
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Select File</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">{t('records.selectFile')}</label>
                 <input type="file" accept=".pdf,.jpg,.jpeg,.png"
                   onChange={(e) => setFile(e.target.files[0])}
                   className="w-full border border-gray-300 rounded-lg px-4 py-2" />
-                {file && <p className="text-sm text-gray-500 mt-1">Selected: {file.name}</p>}
+                {file && <p className="text-sm text-gray-500 mt-1">{t('records.selected', { name: file.name })}</p>}
               </div>
               <button onClick={handleUpload} disabled={loading}
                 className="w-full bg-blue-600 text-white py-3 rounded-lg font-medium hover:bg-blue-700 disabled:opacity-50">
-                {loading ? 'Uploading...' : '📤 Upload to Health Locker'}
+                {loading ? t('records.uploading') : t('records.uploadBtn')}
               </button>
             </div>
           </div>
 
           <div className="bg-white rounded-xl shadow-sm p-6">
-            <h2 className="text-lg font-semibold text-gray-800 mb-4">View Patient Records</h2>
+            <h2 className="text-lg font-semibold text-gray-800 mb-4">{t('records.viewRecords')}</h2>
             <div className="flex gap-2 mb-4">
               <input type="number" value={searchPatientId}
                 onChange={(e) => setSearchPatientId(e.target.value)}
-                placeholder="Enter patient ID"
+                placeholder={t('records.patientIdPlaceholder')}
                 className="flex-1 border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" />
               <button onClick={searchRecords}
                 className="bg-gray-800 text-white px-4 py-2 rounded-lg hover:bg-gray-700">
-                Search
+                {t('records.search')}
               </button>
             </div>
             {records.length === 0 ? (
-              <p className="text-gray-400 text-center py-10">Enter patient ID to view records</p>
+              <p className="text-gray-400 text-center py-10">{t('records.emptyHint')}</p>
             ) : (
               <div className="space-y-3">
                 {records.map((record) => (
                   <div key={record.id} className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
                     <div>
                       <p className="font-medium text-sm text-gray-800">{record.fileName}</p>
-                      <p className="text-xs text-gray-500">{record.recordType} • {record.uploadedAt?.split('T')[0]}</p>
+                      <p className="text-xs text-gray-500">{typeLabels[record.recordType] || record.recordType} • {record.uploadedAt?.split('T')[0]}</p>
                     </div>
                     <button onClick={() => getDownloadUrl(record.id)}
                       className="text-xs bg-blue-600 text-white px-3 py-2 rounded-lg hover:bg-blue-700">
-                      Download
+                      {t('records.download')}
                     </button>
                   </div>
                 ))}

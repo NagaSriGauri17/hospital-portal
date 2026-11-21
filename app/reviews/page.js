@@ -3,9 +3,11 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import api from '../../lib/api';
+import { useLanguage } from '../../context/LanguageContext';
 
 export default function ReviewsPage() {
   const router = useRouter();
+  const { t } = useLanguage();
   const [reviews, setReviews] = useState([]);
   const [loading, setLoading] = useState(true);
   const [openMenuId, setOpenMenuId] = useState(null);
@@ -29,29 +31,29 @@ export default function ReviewsPage() {
   };
 
   const deleteReview = async (id) => {
-    if (!confirm('Delete this review? This cannot be undone.')) return;
+    if (!confirm(t('reviews.confirmDelete'))) return;
     try {
       await api.delete(`/api/review/${id}`);
       setReviews(reviews.filter(r => r.id !== id));
       setOpenMenuId(null);
     } catch (err) {
-      alert('Failed to delete review');
+      alert(t('reviews.deleteFailed'));
     }
   };
 
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="bg-white shadow-sm px-6 py-4 flex items-center gap-4">
-        <Link href="/dashboard" className="text-blue-600 hover:text-blue-800">← Back</Link>
-        <h1 className="text-xl font-bold text-gray-800">⭐ Hospital Reviews</h1>
+        <Link href="/dashboard" className="text-blue-600 hover:text-blue-800">{t('reviews.back')}</Link>
+        <h1 className="text-xl font-bold text-gray-800">{t('reviews.title')}</h1>
       </div>
 
       <div className="max-w-3xl mx-auto px-6 py-8">
         {loading ? (
-          <div className="text-center py-20 text-gray-400">Loading reviews...</div>
+          <div className="text-center py-20 text-gray-400">{t('reviews.loading')}</div>
         ) : reviews.length === 0 ? (
           <div className="bg-white rounded-xl shadow-sm p-12 text-center text-gray-400">
-            No reviews for this hospital yet
+            {t('reviews.empty')}
           </div>
         ) : (
           <div className="space-y-3">
@@ -65,6 +67,7 @@ export default function ReviewsPage() {
                   <div className="relative">
                     <button
                       onClick={() => setOpenMenuId(openMenuId === r.id ? null : r.id)}
+                      aria-label={t('reviews.options')}
                       className="text-gray-400 hover:text-gray-600 px-2 text-xl"
                     >
                       ⋮
@@ -75,7 +78,7 @@ export default function ReviewsPage() {
                           onClick={() => deleteReview(r.id)}
                           className="text-red-600 text-sm px-4 py-2 hover:bg-red-50 rounded-lg whitespace-nowrap"
                         >
-                          🗑 Delete
+                          {t('reviews.delete')}
                         </button>
                       </div>
                     )}

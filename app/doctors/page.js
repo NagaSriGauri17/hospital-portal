@@ -3,9 +3,11 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import api from '../../lib/api';
+import { useLanguage } from '../../context/LanguageContext';
 
 export default function DoctorsPage() {
   const router = useRouter();
+  const { t } = useLanguage();
   const [doctors, setDoctors] = useState([]);
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState('');
@@ -53,12 +55,12 @@ export default function DoctorsPage() {
 
   const handleAddDoctor = async () => {
     if (!form.name || !form.phone || !form.fee || !form.experience) {
-      setMessage('❌ Please fill all required fields');
+      setMessage(t('doctors.err.required'));
       setTimeout(() => setMessage(''), 3000);
       return;
     }
     if (!hospitalId) {
-      setMessage('❌ No hospital linked to this account');
+      setMessage(t('doctors.err.noHospital'));
       return;
     }
     setSubmitting(true);
@@ -72,12 +74,12 @@ export default function DoctorsPage() {
         hospitalId: parseInt(hospitalId),
         specialtyId: parseInt(form.specialtyId)
       });
-      setMessage('✅ Doctor added successfully!');
+      setMessage(t('doctors.success'));
       setShowForm(false);
       setForm({ name: '', phone: '', email: '', fee: '', experience: '', specialtyId: '1' });
       loadDoctors(hospitalId);
     } catch (err) {
-      setMessage('❌ Failed to add doctor: ' + (err.response?.data?.message || 'Error'));
+      setMessage(t('doctors.err.failed', { reason: err.response?.data?.message || t('doctors.err.generic') }));
     }
     setSubmitting(false);
     setTimeout(() => setMessage(''), 4000);
@@ -97,17 +99,17 @@ export default function DoctorsPage() {
       <div className="bg-white shadow-sm px-6 py-4 flex justify-between items-center">
         <div className="flex items-center gap-4">
           <Link href="/dashboard" className="text-blue-600 hover:text-blue-800 text-sm font-medium">
-            ← Back
+            {t('doctors.back')}
           </Link>
-          <h1 className="text-xl font-bold text-gray-800">👨‍⚕️ Doctors</h1>
+          <h1 className="text-xl font-bold text-gray-800">👨‍⚕️ {t('doctors.title')}</h1>
         </div>
         <div className="flex items-center gap-3">
-          <span className="text-sm text-gray-500">{doctors.length} doctors</span>
+          <span className="text-sm text-gray-500">{t('doctors.count', { count: doctors.length })}</span>
           <button
             onClick={() => setShowForm(!showForm)}
             className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700"
           >
-            {showForm ? '✕ Cancel' : '+ Add Doctor'}
+            {showForm ? t('doctors.cancelToggle') : t('doctors.addToggle')}
           </button>
         </div>
       </div>
@@ -126,20 +128,20 @@ export default function DoctorsPage() {
 
         {showForm && (
           <div className="bg-white rounded-xl shadow-sm p-6 mb-6 border border-blue-100">
-            <h2 className="text-lg font-semibold text-gray-800 mb-5">Add New Doctor</h2>
+            <h2 className="text-lg font-semibold text-gray-800 mb-5">{t('doctors.form.title')}</h2>
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Full Name *</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">{t('doctors.form.name')}</label>
                 <input
                   type="text"
                   value={form.name}
                   onChange={(e) => setForm({ ...form, name: e.target.value })}
-                  placeholder="Dr. Ravi Kumar"
+                  placeholder={t('doctors.form.namePlaceholder')}
                   className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Phone *</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">{t('doctors.form.phone')}</label>
                 <input
                   type="tel"
                   value={form.phone}
@@ -149,7 +151,7 @@ export default function DoctorsPage() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">{t('doctors.form.email')}</label>
                 <input
                   type="email"
                   value={form.email}
@@ -159,7 +161,7 @@ export default function DoctorsPage() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Consultation Fee (₹) *</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">{t('doctors.form.fee')}</label>
                 <input
                   type="number"
                   value={form.fee}
@@ -169,24 +171,24 @@ export default function DoctorsPage() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Experience *</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">{t('doctors.form.experience')}</label>
                 <input
                   type="text"
                   value={form.experience}
                   onChange={(e) => setForm({ ...form, experience: e.target.value })}
-                  placeholder="8 years"
+                  placeholder={t('doctors.form.experiencePlaceholder')}
                   className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Specialty *</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">{t('doctors.form.specialty')}</label>
                 <select
                   value={form.specialtyId}
                   onChange={(e) => setForm({ ...form, specialtyId: e.target.value })}
                   className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
                   {specialties.length === 0 ? (
-                    <option value="1">Specialty ID 1</option>
+                    <option value="1">{t('doctors.form.specialtyDefault')}</option>
                   ) : (
                     specialties.map(s => (
                       <option key={s.id} value={s.id}>{s.name}</option>
@@ -201,25 +203,25 @@ export default function DoctorsPage() {
                 disabled={submitting}
                 className="bg-blue-600 text-white px-6 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50"
               >
-                {submitting ? 'Adding...' : 'Add Doctor'}
+                {submitting ? t('doctors.form.submitting') : t('doctors.form.submit')}
               </button>
               <button
                 onClick={() => setShowForm(false)}
                 className="bg-gray-100 text-gray-700 px-6 py-2 rounded-lg text-sm font-medium hover:bg-gray-200"
               >
-                Cancel
+                {t('doctors.form.cancel')}
               </button>
             </div>
           </div>
         )}
 
         {loading ? (
-          <div className="text-center py-20 text-gray-400">Loading doctors...</div>
+          <div className="text-center py-20 text-gray-400">{t('doctors.loading')}</div>
         ) : doctors.length === 0 ? (
           <div className="bg-white rounded-xl shadow-sm p-12 text-center">
             <p className="text-4xl mb-3">👨‍⚕️</p>
-            <p className="text-gray-500 font-medium">No doctors added yet</p>
-            <p className="text-gray-400 text-sm mt-1">Click "+ Add Doctor" to add your first doctor</p>
+            <p className="text-gray-500 font-medium">{t('doctors.empty.title')}</p>
+            <p className="text-gray-400 text-sm mt-1">{t('doctors.empty.hint')}</p>
           </div>
         ) : (
           <div className="grid grid-cols-2 gap-5">
@@ -245,11 +247,11 @@ export default function DoctorsPage() {
                     <div className="mt-3 grid grid-cols-2 gap-2 text-sm text-gray-500">
                       <div className="flex items-center gap-1">
                         <span>📞</span>
-                        <span className="truncate">{doctor.phone || 'N/A'}</span>
+                        <span className="truncate">{doctor.phone || t('doctors.card.na')}</span>
                       </div>
                       <div className="flex items-center gap-1">
                         <span>🏥</span>
-                        <span>{doctor.experience || 'N/A'} exp</span>
+                        <span>{t('doctors.card.exp', { experience: doctor.experience || t('doctors.card.na') })}</span>
                       </div>
                       <div className="flex items-center gap-1">
                         <span>💰</span>

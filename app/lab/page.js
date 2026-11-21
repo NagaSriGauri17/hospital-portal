@@ -3,6 +3,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import api from '../../lib/api';
+import { useLanguage } from '../../context/LanguageContext';
 
 // Parses "24 hours" or "3 days" style strings into a report-ready date from today
 function calculateReportDate(reportTat) {
@@ -20,12 +21,13 @@ function calculateReportDate(reportTat) {
   return result;
 }
 
-function formatDate(date) {
-  return date.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+function formatDate(date, locale) {
+  return date.toLocaleDateString(locale, { day: 'numeric', month: 'short', year: 'numeric' });
 }
 
 export default function LabPage() {
   const router = useRouter();
+  const { t, locale } = useLanguage();
   const [tests, setTests] = useState([]);
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -143,7 +145,7 @@ export default function LabPage() {
 
   const proceedToPayment = () => {
     if (!selectedPatient) {
-      setMessage('❌ Please select a patient first');
+      setMessage(t('lab.selectPatientFirst'));
       return;
     }
     setPaymentStep(true);
@@ -162,9 +164,28 @@ export default function LabPage() {
       });
       setBookedResult(res.data);
     } catch (err) {
-      setMessage('❌ Booking failed: ' + (err.response?.data?.message || 'Error'));
+      setMessage(t('lab.bookingFailed', { error: err.response?.data?.message || t('lab.errorGeneric') }));
     }
     setBooking(false);
+  };
+
+  const paymentLabel = (m) => {
+    switch (m) {
+      case 'CASH': return t('lab.cash');
+      case 'UPI': return t('lab.upi');
+      case 'CARD': return t('lab.card');
+      default: return m;
+    }
+  };
+  const statusLabel = (s) => {
+    switch (s) {
+      case 'BOOKED': return t('lab.status.booked');
+      case 'CONFIRMED': return t('lab.status.confirmed');
+      case 'COMPLETED': return t('lab.status.completed');
+      case 'CANCELLED': return t('lab.status.cancelled');
+      case 'PENDING': return t('lab.status.pending');
+      default: return s;
+    }
   };
 
   const today = new Date();
@@ -173,8 +194,8 @@ export default function LabPage() {
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="bg-white shadow-sm px-6 py-4 flex items-center gap-4">
-        <Link href="/dashboard" className="text-blue-600 hover:text-blue-800">← Back</Link>
-        <h1 className="text-xl font-bold text-gray-800">🧪 Lab Tests</h1>
+        <Link href="/dashboard" className="text-blue-600 hover:text-blue-800">{t('lab.back')}</Link>
+        <h1 className="text-xl font-bold text-gray-800">{t('lab.title')}</h1>
       </div>
 
       <div className="max-w-5xl mx-auto px-6 py-8">
@@ -189,16 +210,16 @@ export default function LabPage() {
 
           {/* Available tests with Book button */}
           <div className="bg-white rounded-xl shadow-sm p-6">
-            <h2 className="text-lg font-semibold text-gray-800 mb-4">Available Tests</h2>
-            {loading ? <p className="text-gray-400">Loading...</p> : (
+            <h2 className="text-lg font-semibold text-gray-800 mb-4">{t('lab.availableTests')}</h2>
+            {loading ? <p className="text-gray-400">{t('lab.loading')}</p> : (
               <div className="space-y-3">
                 {tests.map((test, idx) => (
                   <div key={idx} className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
                     <div>
                       <p className="font-medium text-gray-800">{test.testName}</p>
-                      <p className="text-xs text-gray-500">{test.centerName} • Report in {test.reportTat}</p>
+                      <p className="text-xs text-gray-500">{t('lab.reportIn', { center: test.centerName, tat: test.reportTat })}</p>
                       {test.homeCollectionAvailable && (
-                        <p className="text-xs text-green-600">🏠 Home collection available</p>
+                        <p className="text-xs text-green-600">{t('lab.homeCollection')}</p>
                       )}
                     </div>
                     <div className="text-right flex flex-col items-end gap-2">
@@ -207,7 +228,7 @@ export default function LabPage() {
                         onClick={() => openBookingModal(test)}
                         className="text-xs bg-blue-600 text-white px-3 py-1.5 rounded-lg hover:bg-blue-700 font-medium"
                       >
-                        📋 Book Test
+                        {t('lab.bookTest')}
                       </button>
                     </div>
                   </div>
@@ -218,14 +239,14 @@ export default function LabPage() {
 
           {/* Search existing bookings */}
           <div className="bg-white rounded-xl shadow-sm p-6">
-            <h2 className="text-lg font-semibold text-gray-800 mb-4">Patient Test Bookings</h2>
+            <h2 className="text-lg font-semibold text-gray-800 mb-4">{t('lab.patientBookings')}</h2>
             <div className="relative mb-4">
               <input
                 type="text"
                 value={patientQuery}
                 onChange={(e) => handlePatientQueryChange(e.target.value)}
                 onFocus={() => patientResults.length > 0 && setShowDropdown(true)}
-                placeholder="Type patient name to search..."
+                placeholder={t('lab.searchPlaceholder')}
                 className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
               {showDropdown && patientResults.length > 0 && (
@@ -237,14 +258,14 @@ export default function LabPage() {
                       className="w-full text-left px-4 py-2 hover:bg-blue-50 text-sm border-b border-gray-100 last:border-b-0"
                     >
                       <p className="font-medium text-gray-800">{p.name}</p>
-                      <p className="text-xs text-gray-500">{p.phone || p.email} — ID: {p.id}</p>
+                      <p className="text-xs text-gray-500">{t('lab.contactId', { contact: p.phone || p.email, id: p.id })}</p>
                     </button>
                   ))}
                 </div>
               )}
             </div>
             {bookings.length === 0 ? (
-              <p className="text-gray-400 text-center py-10">Search and select a patient to view bookings</p>
+              <p className="text-gray-400 text-center py-10">{t('lab.searchPrompt')}</p>
             ) : (
               <div className="space-y-3">
                 {bookings.map((booking) => (
@@ -252,8 +273,8 @@ export default function LabPage() {
                     <p className="font-medium text-gray-800">{booking.testName}</p>
                     <p className="text-sm text-gray-500">{booking.centerName}</p>
                     <div className="flex justify-between mt-1 items-center">
-                      <span className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded">{booking.status}</span>
-                      <span className="text-xs text-gray-400">{booking.paymentMethod}</span>
+                      <span className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded">{statusLabel(booking.status)}</span>
+                      <span className="text-xs text-gray-400">{paymentLabel(booking.paymentMethod)}</span>
                       <span className="text-sm font-medium text-gray-700">₹{booking.price}</span>
                     </div>
                   </div>
@@ -273,23 +294,23 @@ export default function LabPage() {
               <>
                 <div className="flex justify-between items-start mb-5">
                   <div>
-                    <h2 className="text-lg font-bold text-gray-800">Book: {bookingTest.testName}</h2>
+                    <h2 className="text-lg font-bold text-gray-800">{t('lab.bookTitle', { name: bookingTest.testName })}</h2>
                     <p className="text-sm text-gray-500">{bookingTest.centerName} • ₹{bookingTest.price}</p>
                   </div>
-                  <button onClick={closeBookingModal} className="text-gray-400 hover:text-gray-600 text-xl">✕</button>
+                  <button onClick={closeBookingModal} aria-label={t('lab.close')} className="text-gray-400 hover:text-gray-600 text-xl">✕</button>
                 </div>
 
                 {!paymentStep ? (
                   <>
                     {/* Patient search */}
                     <div className="relative mb-4">
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Patient Name</label>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">{t('lab.patientName')}</label>
                       <input
                         type="text"
                         value={bookPatientQuery}
                         onChange={(e) => handleBookPatientQueryChange(e.target.value)}
                         onFocus={() => bookPatientResults.length > 0 && setBookShowDropdown(true)}
-                        placeholder="Type patient name to search..."
+                        placeholder={t('lab.searchPlaceholder')}
                         className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
                       />
                       {bookShowDropdown && bookPatientResults.length > 0 && (
@@ -301,7 +322,7 @@ export default function LabPage() {
                               className="w-full text-left px-4 py-2 hover:bg-blue-50 text-sm border-b border-gray-100 last:border-b-0"
                             >
                               <p className="font-medium text-gray-800">{p.name}</p>
-                              <p className="text-xs text-gray-500">{p.phone || p.email} — ID: {p.id}</p>
+                              <p className="text-xs text-gray-500">{t('lab.contactId', { contact: p.phone || p.email, id: p.id })}</p>
                             </button>
                           ))}
                         </div>
@@ -312,20 +333,20 @@ export default function LabPage() {
                       <div className="space-y-3 mb-5">
                         <div className="grid grid-cols-2 gap-3">
                           <div className="bg-gray-50 rounded-lg p-3">
-                            <p className="text-xs text-gray-500">Phone Number</p>
-                            <p className="font-medium text-gray-800 text-sm">{selectedPatient.phone || 'N/A'}</p>
+                            <p className="text-xs text-gray-500">{t('lab.phoneNumber')}</p>
+                            <p className="font-medium text-gray-800 text-sm">{selectedPatient.phone || t('lab.na')}</p>
                           </div>
                           <div className="bg-gray-50 rounded-lg p-3">
-                            <p className="text-xs text-gray-500">Patient ID</p>
+                            <p className="text-xs text-gray-500">{t('lab.patientId')}</p>
                             <p className="font-medium text-gray-800 text-sm">#{selectedPatient.id}</p>
                           </div>
                           <div className="bg-gray-50 rounded-lg p-3">
-                            <p className="text-xs text-gray-500">Booking Date</p>
-                            <p className="font-medium text-gray-800 text-sm">{formatDate(today)}</p>
+                            <p className="text-xs text-gray-500">{t('lab.bookingDate')}</p>
+                            <p className="font-medium text-gray-800 text-sm">{formatDate(today, locale)}</p>
                           </div>
                           <div className="bg-green-50 rounded-lg p-3">
-                            <p className="text-xs text-gray-500">Report Ready By</p>
-                            <p className="font-medium text-green-700 text-sm">{formatDate(reportDate)}</p>
+                            <p className="text-xs text-gray-500">{t('lab.reportReadyBy')}</p>
+                            <p className="font-medium text-green-700 text-sm">{formatDate(reportDate, locale)}</p>
                           </div>
                         </div>
                       </div>
@@ -336,51 +357,51 @@ export default function LabPage() {
                       disabled={!selectedPatient}
                       className="w-full bg-blue-600 text-white py-3 rounded-lg font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                      Continue to Payment →
+                      {t('lab.continuePayment')}
                     </button>
                   </>
                 ) : (
                   <>
                     <div className="bg-gray-50 rounded-lg p-4 mb-5">
-                      <p className="text-sm text-gray-500">Amount to collect</p>
+                      <p className="text-sm text-gray-500">{t('lab.amountToCollect')}</p>
                       <p className="text-3xl font-bold text-gray-800">₹{bookingTest.price}</p>
                     </div>
 
-                    <p className="text-sm font-medium text-gray-700 mb-3">Select Payment Method</p>
+                    <p className="text-sm font-medium text-gray-700 mb-3">{t('lab.selectPaymentMethod')}</p>
                     <div className="space-y-2">
                       <button
                         onClick={() => handlePayment('CASH')}
                         disabled={booking}
                         className="w-full flex items-center justify-between bg-green-50 border border-green-300 text-green-800 px-4 py-3 rounded-lg font-medium hover:bg-green-100 disabled:opacity-50"
                       >
-                        <span>💵 Cash</span>
-                        <span className="text-xs text-green-600">Mark as paid</span>
+                        <span>💵 {t('lab.cash')}</span>
+                        <span className="text-xs text-green-600">{t('lab.markPaid')}</span>
                       </button>
                       <button
                         onClick={() => handlePayment('UPI')}
                         disabled={booking}
                         className="w-full flex items-center justify-between bg-purple-50 border border-purple-300 text-purple-800 px-4 py-3 rounded-lg font-medium hover:bg-purple-100 disabled:opacity-50"
                       >
-                        <span>📱 UPI</span>
-                        <span className="text-xs text-purple-500">Demo — not integrated yet</span>
+                        <span>📱 {t('lab.upi')}</span>
+                        <span className="text-xs text-purple-500">{t('lab.demoNotIntegrated')}</span>
                       </button>
                       <button
                         onClick={() => handlePayment('CARD')}
                         disabled={booking}
                         className="w-full flex items-center justify-between bg-blue-50 border border-blue-300 text-blue-800 px-4 py-3 rounded-lg font-medium hover:bg-blue-100 disabled:opacity-50"
                       >
-                        <span>💳 Card</span>
-                        <span className="text-xs text-blue-500">Demo — not integrated yet</span>
+                        <span>💳 {t('lab.card')}</span>
+                        <span className="text-xs text-blue-500">{t('lab.demoNotIntegrated')}</span>
                       </button>
                     </div>
 
-                    {booking && <p className="text-center text-sm text-gray-400 mt-4">Processing...</p>}
+                    {booking && <p className="text-center text-sm text-gray-400 mt-4">{t('lab.processing')}</p>}
 
                     <button
                       onClick={() => setPaymentStep(false)}
                       className="w-full text-gray-500 text-sm mt-4"
                     >
-                      ← Back
+                      {t('lab.back')}
                     </button>
                   </>
                 )}
@@ -389,29 +410,29 @@ export default function LabPage() {
               <>
                 <div className="text-center py-4">
                   <div className="text-5xl mb-3">✅</div>
-                  <h2 className="text-lg font-bold text-gray-800 mb-1">Payment Confirmed</h2>
-                  <p className="text-sm text-gray-500 mb-5">Test booked successfully</p>
+                  <h2 className="text-lg font-bold text-gray-800 mb-1">{t('lab.paymentConfirmed')}</h2>
+                  <p className="text-sm text-gray-500 mb-5">{t('lab.bookedSuccess')}</p>
 
                   <div className="bg-gray-50 rounded-lg p-4 text-left space-y-2 text-sm">
                     <div className="flex justify-between">
-                      <span className="text-gray-500">Test</span>
+                      <span className="text-gray-500">{t('lab.test')}</span>
                       <span className="font-medium text-gray-800">{bookedResult.testName}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-gray-500">Patient</span>
+                      <span className="text-gray-500">{t('lab.patient')}</span>
                       <span className="font-medium text-gray-800">{selectedPatient.name}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-gray-500">Amount</span>
+                      <span className="text-gray-500">{t('lab.amount')}</span>
                       <span className="font-medium text-gray-800">₹{bookedResult.price}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-gray-500">Payment Method</span>
-                      <span className="font-medium text-gray-800">{bookedResult.paymentMethod}</span>
+                      <span className="text-gray-500">{t('lab.paymentMethod')}</span>
+                      <span className="font-medium text-gray-800">{paymentLabel(bookedResult.paymentMethod)}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-gray-500">Report Ready By</span>
-                      <span className="font-medium text-green-700">{formatDate(reportDate)}</span>
+                      <span className="text-gray-500">{t('lab.reportReadyBy')}</span>
+                      <span className="font-medium text-green-700">{formatDate(reportDate, locale)}</span>
                     </div>
                   </div>
 
@@ -419,7 +440,7 @@ export default function LabPage() {
                     onClick={closeBookingModal}
                     className="w-full bg-blue-600 text-white py-3 rounded-lg font-medium hover:bg-blue-700 mt-5"
                   >
-                    Done
+                    {t('lab.done')}
                   </button>
                 </div>
               </>

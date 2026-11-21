@@ -3,9 +3,11 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import api from '../../lib/api';
+import { useLanguage } from '../../context/LanguageContext';
 
 export default function AppointmentsPage() {
   const router = useRouter();
+  const { t } = useLanguage();
   const [appointments, setAppointments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState('');
@@ -31,11 +33,11 @@ const res = await api.get(`/api/hospital/${hospitalId}/appointments/today`);
   const markCompleted = async (id) => {
     try {
       await api.put(`/api/booking/${id}/reschedule`, { status: 'COMPLETED' });
-      setMessage('✅ Marked as completed');
+      setMessage(t('appointments.msg.completed'));
       loadAppointments();
     } catch (err) {
       // Try direct status update
-      setMessage('Status update attempted');
+      setMessage(t('appointments.msg.statusAttempted'));
     }
     setTimeout(() => setMessage(''), 3000);
   };
@@ -43,10 +45,10 @@ const res = await api.get(`/api/hospital/${hospitalId}/appointments/today`);
   const cancelAppointment = async (id) => {
     try {
       await api.post(`/api/booking/${id}/cancel`);
-      setMessage('✅ Appointment cancelled');
+      setMessage(t('appointments.msg.cancelled'));
       loadAppointments();
     } catch (err) {
-      setMessage('❌ Cancel failed');
+      setMessage(t('appointments.msg.cancelFailed'));
     }
     setTimeout(() => setMessage(''), 3000);
   };
@@ -62,14 +64,24 @@ const res = await api.get(`/api/hospital/${hospitalId}/appointments/today`);
     }
   };
 
+  const statusLabels = {
+    CONFIRMED: t('appointments.status.CONFIRMED'),
+    COMPLETED: t('appointments.status.COMPLETED'),
+    CANCELLED: t('appointments.status.CANCELLED'),
+    CHECKED_IN: t('appointments.status.CHECKED_IN'),
+    PENDING_PAYMENT: t('appointments.status.PENDING_PAYMENT'),
+    BOOKED: t('appointments.status.BOOKED'),
+    PENDING: t('appointments.status.PENDING'),
+  };
+
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="bg-white shadow-sm px-6 py-4 flex justify-between items-center">
         <div className="flex items-center gap-4">
-          <Link href="/dashboard" className="text-blue-600 hover:text-blue-800">← Back</Link>
-          <h1 className="text-xl font-bold text-gray-800">📅 Appointments</h1>
+          <Link href="/dashboard" className="text-blue-600 hover:text-blue-800">{t('appointments.back')}</Link>
+          <h1 className="text-xl font-bold text-gray-800">{t('appointments.title')}</h1>
         </div>
-        <span className="text-sm text-gray-500">{appointments.length} total</span>
+        <span className="text-sm text-gray-500">{t('appointments.total', { count: appointments.length })}</span>
       </div>
 
       <div className="max-w-5xl mx-auto px-6 py-8">
@@ -81,9 +93,9 @@ const res = await api.get(`/api/hospital/${hospitalId}/appointments/today`);
         )}
 
         {loading ? (
-          <div className="text-center py-20 text-gray-400">Loading appointments...</div>
+          <div className="text-center py-20 text-gray-400">{t('appointments.loading')}</div>
         ) : appointments.length === 0 ? (
-          <div className="text-center py-20 text-gray-400">No appointments found</div>
+          <div className="text-center py-20 text-gray-400">{t('appointments.empty')}</div>
         ) : (
           <div className="space-y-4">
             {appointments.map((apt) => (
@@ -92,30 +104,30 @@ const res = await api.get(`/api/hospital/${hospitalId}/appointments/today`);
                   <div className="flex-1">
                     <div className="flex items-center gap-3 mb-2">
                       <h3 className="font-semibold text-gray-800 text-lg">
-                        {apt.user?.name || 'Patient'}
+                        {apt.user?.name || t('patient')}
                       </h3>
                       <span className={`text-xs px-3 py-1 rounded-full font-medium ${getStatusColor(apt.status)}`}>
-                        {apt.status}
+                        {statusLabels[apt.status] || apt.status}
                       </span>
                       {apt.type === 'WALK_IN' && (
                         <span className="text-xs px-2 py-1 bg-purple-100 text-purple-700 rounded-full">
-                          Walk-in
+                          {t('appointments.walkIn')}
                         </span>
                       )}
                     </div>
                     <div className="grid grid-cols-3 gap-4 text-sm text-gray-500">
                       <div>
-                        <span className="font-medium">Date:</span> {apt.slot?.date}
+                        <span className="font-medium">{t('appointments.date')}</span> {apt.slot?.date}
                       </div>
                       <div>
-                        <span className="font-medium">Time:</span> {apt.slot?.startTime} - {apt.slot?.endTime}
+                        <span className="font-medium">{t('appointments.time')}</span> {apt.slot?.startTime} - {apt.slot?.endTime}
                       </div>
                       <div>
-                        <span className="font-medium">Amount:</span> ₹{apt.amount}
+                        <span className="font-medium">{t('appointments.amount')}</span> ₹{apt.amount}
                       </div>
                     </div>
                     {apt.notes && (
-                      <p className="text-sm text-gray-400 mt-2">Notes: {apt.notes}</p>
+                      <p className="text-sm text-gray-400 mt-2">{t('appointments.notes', { notes: apt.notes })}</p>
                     )}
                   </div>
                   <div className="flex gap-2 ml-4">
@@ -124,7 +136,7 @@ const res = await api.get(`/api/hospital/${hospitalId}/appointments/today`);
                         onClick={() => markCompleted(apt.id)}
                         className="text-xs bg-blue-600 text-white px-3 py-2 rounded-lg hover:bg-blue-700"
                       >
-                        Mark Done
+                        {t('appointments.markDone')}
                       </button>
                     )}
                     {(apt.status === 'CONFIRMED' || apt.status === 'PENDING_PAYMENT') && (
@@ -132,7 +144,7 @@ const res = await api.get(`/api/hospital/${hospitalId}/appointments/today`);
                         onClick={() => cancelAppointment(apt.id)}
                         className="text-xs bg-red-500 text-white px-3 py-2 rounded-lg hover:bg-red-600"
                       >
-                        Cancel
+                        {t('appointments.cancel')}
                       </button>
                     )}
                   </div>

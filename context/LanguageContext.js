@@ -1,6 +1,6 @@
 'use client';
 import { createContext, useContext, useState, useEffect } from 'react';
-import { translations } from '../lib/i18n';
+import { translations, locales } from '../lib/i18n';
 
 const LanguageContext = createContext();
 
@@ -17,10 +17,18 @@ export function LanguageProvider({ children }) {
     localStorage.setItem('appLanguage', lang);
   };
 
-  const t = (key) => translations[language]?.[key] || translations.en[key] || key;
+  // t('key') or t('key', { name: 'Ravi' }) — {name} in the text is replaced by the value
+  const t = (key, vars) => {
+    let str = translations[language]?.[key] || translations.en[key] || key;
+    if (vars) {
+      Object.entries(vars).forEach(([k, v]) => { str = str.split(`{${k}}`).join(String(v)); });
+    }
+    return str;
+  };
+  const locale = locales[language] || 'en-IN';
 
   return (
-    <LanguageContext.Provider value={{ language, setLanguage, t }}>
+    <LanguageContext.Provider value={{ language, setLanguage, t, locale }}>
       {children}
     </LanguageContext.Provider>
   );

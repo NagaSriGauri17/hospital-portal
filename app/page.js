@@ -22,12 +22,14 @@ export default function LoginPage() {
   const isEmail = (val) => val.includes('@');
 
   const passwordRules = [
-    { label: 'At least 8 characters', test: (p) => p.length >= 8 },
-    { label: 'At least one uppercase letter', test: (p) => /[A-Z]/.test(p) },
-    { label: 'At least one lowercase letter', test: (p) => /[a-z]/.test(p) },
-    { label: 'At least one number', test: (p) => /[0-9]/.test(p) },
-    { label: 'At least one special character (!@#$...)', test: (p) => /[^A-Za-z0-9]/.test(p) },
+    { label: t('login.rule.length'), test: (p) => p.length >= 8 },
+    { label: t('login.rule.upper'), test: (p) => /[A-Z]/.test(p) },
+    { label: t('login.rule.lower'), test: (p) => /[a-z]/.test(p) },
+    { label: t('login.rule.number'), test: (p) => /[0-9]/.test(p) },
+    { label: t('login.rule.special'), test: (p) => /[^A-Za-z0-9]/.test(p) },
   ];
+
+  const otpSentParts = t('login.otpSentTo', { identifier: '\u0001' }).split('\u0001');
 
   const allRulesPassed = passwordRules.every((r) => r.test(password));
 
@@ -81,16 +83,16 @@ export default function LoginPage() {
     try {
       const res = await api.post('/api/auth/login', { identifier, password });
       if (res.data === 'User not found') {
-        setError('No account found. Please sign up first.');
+        setError(t('login.err.noAccount'));
       } else if (res.data === 'Invalid password') {
-        setError('Wrong password. Try again or use Forgot Password.');
+        setError(t('login.err.wrongPassword'));
       } else if (res.data === 'Please complete signup first') {
-        setError('Please sign up and set a password first.');
+        setError(t('login.err.signupFirst'));
       } else {
         await finishLogin(res.data);
       }
     } catch (err) {
-      setError('Login failed. Please try again.');
+      setError(t('login.err.loginFailed'));
     }
     setLoading(false);
   };
@@ -106,9 +108,9 @@ export default function LoginPage() {
         await api.post('/api/auth/send-otp/phone', { phone: identifier });
       }
       setStep(2);
-      setSuccess('OTP sent! Check your ' + (isEmail(identifier) ? 'email' : 'phone'));
+      setSuccess(isEmail(identifier) ? t('login.ok.otpSentEmail') : t('login.ok.otpSentPhone'));
     } catch (err) {
-      setError('Failed to send OTP. Check your email/phone and try again.');
+      setError(t('login.err.sendOtpFailed'));
     }
     setLoading(false);
   };
@@ -125,13 +127,13 @@ export default function LoginPage() {
         res = await api.post('/api/auth/verify-otp/phone', { phone: identifier, otp });
       }
       if (res.data === 'Invalid OTP') {
-        setError('Invalid OTP. Please try again.');
+        setError(t('login.err.invalidOtp'));
       } else {
         setStep(3);
-        setSuccess('OTP verified! Now select your hospital and set your password.');
+        setSuccess(t('login.ok.otpVerified'));
       }
     } catch (err) {
-      setError('OTP verification failed.');
+      setError(t('login.err.verifyFailed'));
     }
     setLoading(false);
   };
@@ -139,28 +141,36 @@ export default function LoginPage() {
   // ── SIGNUP: Step 3 — set password (with hospital) ──
   const handleSetPassword = async () => {
     if (!selectedHospitalId) {
-      setError('Please select your hospital.');
+      setError(t('login.err.selectHospital'));
       return;
     }
     if (!allRulesPassed) {
-      setError('Password does not meet all requirements.');
+      setError(t('login.err.rules'));
       return;
     }
     if (password !== confirmPassword) {
-      setError('Passwords do not match.');
+      setError(t('login.err.mismatch'));
       return;
     }
     setLoading(true);
     setError('');
     try {
-      const res = await api.post('/api/auth/set-password', {
+      await api.post("/api/auth/set-password", {
         identifier,
         password,
         hospitalId: selectedHospitalId
       });
-      await finishLogin(res.data);
+      // Account created: send the user to the login page instead of logging them in
+      setMode('login');
+      setStep(1);
+      setOtp('');
+      setPassword('');
+      setConfirmPassword('');
+      setSelectedHospitalId('');
+      setError('');
+      setSuccess(t('login.ok.accountCreated'));
     } catch (err) {
-      setError('Failed to set password. Please try again.');
+      setError(t('login.err.setPasswordFailed'));
     }
     setLoading(false);
   };
@@ -172,9 +182,9 @@ export default function LoginPage() {
     try {
       await api.post('/api/auth/forgot-password/send-otp', { identifier });
       setStep(2);
-      setSuccess('OTP sent to your ' + (isEmail(identifier) ? 'email' : 'phone'));
+      setSuccess(isEmail(identifier) ? t('login.ok.resetOtpEmail') : t('login.ok.resetOtpPhone'));
     } catch (err) {
-      setError('Failed to send OTP.');
+      setError(t('login.err.forgotSendFailed'));
     }
     setLoading(false);
   };
@@ -182,11 +192,11 @@ export default function LoginPage() {
   // ── FORGOT: Step 2 — verify OTP + new password ──
   const handleForgotReset = async () => {
     if (!allRulesPassed) {
-      setError('Password does not meet all requirements.');
+      setError(t('login.err.rules'));
       return;
     }
     if (password !== confirmPassword) {
-      setError('Passwords do not match.');
+      setError(t('login.err.mismatch'));
       return;
     }
     setLoading(true);
@@ -198,12 +208,19 @@ export default function LoginPage() {
         newPassword: password,
       });
       if (res.data === 'Invalid OTP') {
-        setError('Invalid OTP. Please try again.');
+        setError(t('login.err.invalidOtp'));
       } else {
-        await finishLogin(res.data);
+        // Password reset: send the user to the login page instead of logging them in
+        setMode('login');
+        setStep(1);
+        setOtp('');
+        setPassword('');
+        setConfirmPassword('');
+        setError('');
+        setSuccess(t('login.ok.passwordReset'));
       }
     } catch (err) {
-      setError('Reset failed. Please try again.');
+      setError(t('login.err.resetFailed'));
     }
     setLoading(false);
   };
@@ -231,7 +248,7 @@ export default function LoginPage() {
         {/* Header */}
         <div className="text-center mb-6">
           <h1 className="text-3xl font-bold text-blue-600">🏥 {t('appName')}</h1>
-          <p className="text-gray-500 mt-1">Hospital Staff Portal</p>
+          <p className="text-gray-500 mt-1">{t('login.subtitle')}</p>
         </div>
 
         {/* Mode tabs */}
@@ -242,7 +259,7 @@ export default function LoginPage() {
               mode === 'login' ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-500'
             }`}
           >
-            Login
+            {t('login')}
           </button>
           <button
             onClick={() => switchMode('signup')}
@@ -250,7 +267,7 @@ export default function LoginPage() {
               mode === 'signup' ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-500'
             }`}
           >
-            Sign Up
+            {t('signup')}
           </button>
         </div>
 
@@ -271,20 +288,20 @@ export default function LoginPage() {
           <div className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Email or Phone
+                {t('login.emailOrPhone')}
               </label>
               <input
                 type="text"
                 value={identifier}
                 onChange={(e) => setIdentifier(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && handleLogin()}
-                placeholder="admin@hospital.com or 9876543210"
+                placeholder={t('login.identifierPlaceholder')}
                 className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Password
+                {t('login.password')}
               </label>
               <div className="relative">
                 <input
@@ -292,12 +309,13 @@ export default function LoginPage() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && handleLogin()}
-                  placeholder="Enter your password"
+                  placeholder={t('login.passwordPlaceholder')}
                   className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 pr-12"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
+                  aria-label={showPassword ? t('login.hidePassword') : t('login.showPassword')}
                   className="absolute right-3 top-3.5 text-gray-400 hover:text-gray-600 text-sm"
                 >
                   {showPassword ? '🙈' : '👁'}
@@ -309,13 +327,13 @@ export default function LoginPage() {
               disabled={loading || !identifier || !password}
               className="w-full bg-blue-600 text-white py-3 rounded-lg font-medium hover:bg-blue-700 disabled:opacity-50"
             >
-              {loading ? 'Logging in...' : 'Login'}
+              {loading ? t('login.loggingIn') : t('login')}
             </button>
             <button
               onClick={() => switchMode('forgot')}
               className="w-full text-blue-600 text-sm hover:underline"
             >
-              Forgot password?
+              {t('login.forgotLink')}
             </button>
           </div>
         )}
@@ -325,7 +343,7 @@ export default function LoginPage() {
           <div>
             {/* Step indicator */}
             <div className="flex items-center mb-6">
-              {['Enter Email/Phone', 'Verify OTP', 'Hospital + Password'].map((label, idx) => (
+              {[t('login.step.enter'), t('login.step.verify'), t('login.step.hospital')].map((label, idx) => (
                 <div key={idx} className="flex items-center flex-1">
                   <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold ${
                     step > idx + 1 ? 'bg-green-500 text-white' :
@@ -346,14 +364,14 @@ export default function LoginPage() {
               <div className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Email or Phone Number
+                    {t('login.emailOrPhoneNumber')}
                   </label>
                   <input
                     type="text"
                     value={identifier}
                     onChange={(e) => setIdentifier(e.target.value)}
                     onKeyDown={(e) => e.key === 'Enter' && handleSignupSendOtp()}
-                    placeholder="admin@hospital.com or 9876543210"
+                    placeholder={t('login.identifierPlaceholder')}
                     className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
@@ -362,7 +380,7 @@ export default function LoginPage() {
                   disabled={loading || !identifier}
                   className="w-full bg-blue-600 text-white py-3 rounded-lg font-medium hover:bg-blue-700 disabled:opacity-50"
                 >
-                  {loading ? 'Sending OTP...' : 'Send OTP'}
+                  {loading ? t('login.sendingOtp') : t('login.sendOtp')}
                 </button>
               </div>
             )}
@@ -371,11 +389,11 @@ export default function LoginPage() {
             {step === 2 && (
               <div className="space-y-4">
                 <p className="text-sm text-gray-600">
-                  OTP sent to <strong>{identifier}</strong>
+                  {otpSentParts[0]}<strong>{identifier}</strong>{otpSentParts[1]}
                 </p>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Enter OTP
+                    {t('login.enterOtp')}
                   </label>
                   <input
                     type="text"
@@ -383,6 +401,7 @@ export default function LoginPage() {
                     onChange={(e) => setOtp(e.target.value)}
                     onKeyDown={(e) => e.key === 'Enter' && handleSignupVerifyOtp()}
                     placeholder="123456"
+                    autoComplete="one-time-code"
                     maxLength={6}
                     className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 text-center text-2xl tracking-widest"
                   />
@@ -392,10 +411,10 @@ export default function LoginPage() {
                   disabled={loading || otp.length < 6}
                   className="w-full bg-blue-600 text-white py-3 rounded-lg font-medium hover:bg-blue-700 disabled:opacity-50"
                 >
-                  {loading ? 'Verifying...' : 'Verify OTP'}
+                  {loading ? t('login.verifying') : t('login.verifyOtp')}
                 </button>
                 <button onClick={() => setStep(1)} className="w-full text-gray-500 text-sm">
-                  ← Change email/phone
+                  {t('login.changeContact')}
                 </button>
               </div>
             )}
@@ -405,14 +424,14 @@ export default function LoginPage() {
               <div className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Select Your Hospital
+                    {t('login.selectHospital')}
                   </label>
                   <select
                     value={selectedHospitalId}
                     onChange={(e) => setSelectedHospitalId(e.target.value)}
                     className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
                   >
-                    <option value="">-- Choose a hospital --</option>
+                    <option value="">{t('login.chooseHospital')}</option>
                     {hospitals.map((h) => (
                       <option key={h.id} value={h.id}>
                         {h.name} {h.city ? `(${h.city})` : ''}
@@ -423,19 +442,20 @@ export default function LoginPage() {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    New Password
+                    {t('login.newPassword')}
                   </label>
                   <div className="relative">
                     <input
                       type={showPassword ? 'text' : 'password'}
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
-                      placeholder="Create a strong password"
+                      placeholder={t('login.createPasswordPlaceholder')}
                       className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 pr-12"
                     />
                     <button
                       type="button"
                       onClick={() => setShowPassword(!showPassword)}
+                      aria-label={showPassword ? t('login.hidePassword') : t('login.showPassword')}
                       className="absolute right-3 top-3.5 text-gray-400 hover:text-gray-600 text-sm"
                     >
                       {showPassword ? '🙈' : '👁'}
@@ -461,14 +481,14 @@ export default function LoginPage() {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Confirm Password
+                    {t('login.confirmPassword')}
                   </label>
                   <input
                     type={showPassword ? 'text' : 'password'}
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
                     onKeyDown={(e) => e.key === 'Enter' && handleSetPassword()}
-                    placeholder="Repeat your password"
+                    placeholder={t('login.repeatPasswordPlaceholder')}
                     className={`w-full border rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 ${
                       confirmPassword && password !== confirmPassword
                         ? 'border-red-400'
@@ -476,7 +496,7 @@ export default function LoginPage() {
                     }`}
                   />
                   {confirmPassword && password !== confirmPassword && (
-                    <p className="text-red-500 text-xs mt-1">Passwords do not match</p>
+                    <p className="text-red-500 text-xs mt-1">{t('login.mismatchHint')}</p>
                   )}
                 </div>
 
@@ -485,7 +505,7 @@ export default function LoginPage() {
                   disabled={loading || !allRulesPassed || password !== confirmPassword || !selectedHospitalId}
                   className="w-full bg-blue-600 text-white py-3 rounded-lg font-medium hover:bg-blue-700 disabled:opacity-50"
                 >
-                  {loading ? 'Creating account...' : 'Create Account & Login'}
+                  {loading ? t('login.creating') : t('login.createAccount')}
                 </button>
               </div>
             )}
@@ -495,20 +515,20 @@ export default function LoginPage() {
         {/* ── FORGOT PASSWORD MODE ── */}
         {mode === 'forgot' && (
           <div>
-            <h2 className="text-lg font-semibold text-gray-800 mb-4">Reset Password</h2>
+            <h2 className="text-lg font-semibold text-gray-800 mb-4">{t('login.resetTitle')}</h2>
 
             {step === 1 && (
               <div className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Registered Email or Phone
+                    {t('login.registeredEmailOrPhone')}
                   </label>
                   <input
                     type="text"
                     value={identifier}
                     onChange={(e) => setIdentifier(e.target.value)}
                     onKeyDown={(e) => e.key === 'Enter' && handleForgotSendOtp()}
-                    placeholder="admin@hospital.com or 9876543210"
+                    placeholder={t('login.identifierPlaceholder')}
                     className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
@@ -517,13 +537,13 @@ export default function LoginPage() {
                   disabled={loading || !identifier}
                   className="w-full bg-blue-600 text-white py-3 rounded-lg font-medium hover:bg-blue-700 disabled:opacity-50"
                 >
-                  {loading ? 'Sending OTP...' : 'Send Reset OTP'}
+                  {loading ? t('login.sendingOtp') : t('login.sendResetOtp')}
                 </button>
                 <button
                   onClick={() => switchMode('login')}
                   className="w-full text-gray-500 text-sm"
                 >
-                  ← Back to Login
+                  {t('login.backToLogin')}
                 </button>
               </div>
             )}
@@ -532,32 +552,34 @@ export default function LoginPage() {
               <div className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Enter OTP
+                    {t('login.enterOtp')}
                   </label>
                   <input
                     type="text"
                     value={otp}
                     onChange={(e) => setOtp(e.target.value)}
                     placeholder="123456"
+                    autoComplete="one-time-code"
                     maxLength={6}
                     className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 text-center text-2xl tracking-widest"
                   />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    New Password
+                    {t('login.newPassword')}
                   </label>
                   <div className="relative">
                     <input
                       type={showPassword ? 'text' : 'password'}
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
-                      placeholder="Create a strong password"
+                      placeholder={t('login.createPasswordPlaceholder')}
                       className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 pr-12"
                     />
                     <button
                       type="button"
                       onClick={() => setShowPassword(!showPassword)}
+                      aria-label={showPassword ? t('login.hidePassword') : t('login.showPassword')}
                       className="absolute right-3 top-3.5 text-gray-400 text-sm"
                     >
                       {showPassword ? '🙈' : '👁'}
@@ -581,13 +603,13 @@ export default function LoginPage() {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Confirm New Password
+                    {t('login.confirmNewPassword')}
                   </label>
                   <input
                     type={showPassword ? 'text' : 'password'}
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
-                    placeholder="Repeat your password"
+                    placeholder={t('login.repeatPasswordPlaceholder')}
                     className={`w-full border rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 ${
                       confirmPassword && password !== confirmPassword
                         ? 'border-red-400'
@@ -600,7 +622,7 @@ export default function LoginPage() {
                   disabled={loading || otp.length < 6 || !allRulesPassed || password !== confirmPassword}
                   className="w-full bg-blue-600 text-white py-3 rounded-lg font-medium hover:bg-blue-700 disabled:opacity-50"
                 >
-                  {loading ? 'Resetting...' : 'Reset Password & Login'}
+                  {loading ? t('login.resetting') : t('login.resetPassword')}
                 </button>
               </div>
             )}

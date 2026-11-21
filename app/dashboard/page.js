@@ -102,7 +102,7 @@ export default function Dashboard() {
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-blue-600 text-xl">Loading dashboard...</div>
+        <div className="text-blue-600 text-xl">{t('dashboard.loading')}</div>
       </div>
     );
   }
@@ -135,25 +135,25 @@ export default function Dashboard() {
 
         <div className="grid grid-cols-4 gap-6 mb-8">
           <div className="bg-white rounded-xl p-6 shadow-sm border-l-4 border-blue-500">
-            <p className="text-gray-500 text-sm">Today's Appointments</p>
+            <p className="text-gray-500 text-sm">{t('dashboard.stat.todayAppointments')}</p>
             <p className="text-3xl font-bold text-blue-600 mt-1">{stats.todayAppointments}</p>
           </div>
           <div className="bg-white rounded-xl p-6 shadow-sm border-l-4 border-green-500">
-            <p className="text-gray-500 text-sm">Current Token (all doctors)</p>
+            <p className="text-gray-500 text-sm">{t('dashboard.stat.currentToken')}</p>
             <p className="text-3xl font-bold text-green-600 mt-1">{stats.currentToken}</p>
           </div>
           <div className="bg-white rounded-xl p-6 shadow-sm border-l-4 border-orange-500">
-            <p className="text-gray-500 text-sm">Waiting Patients (all doctors)</p>
+            <p className="text-gray-500 text-sm">{t('dashboard.stat.waiting')}</p>
             <p className="text-3xl font-bold text-orange-600 mt-1">{stats.waitingCount}</p>
           </div>
           <div className="bg-white rounded-xl p-6 shadow-sm border-l-4 border-purple-500">
-            <p className="text-gray-500 text-sm">Completed Today (all doctors)</p>
+            <p className="text-gray-500 text-sm">{t('dashboard.stat.completed')}</p>
             <p className="text-3xl font-bold text-purple-600 mt-1">{stats.completedCount}</p>
           </div>
         </div>
 
         <div className="mb-8">
-          <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">Quick Access</h2>
+          <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">{t('dashboard.quickAccess')}</h2>
           <div className="grid grid-cols-4 gap-3">
             {navItems.map((item) => (
               <Link
@@ -177,7 +177,7 @@ export default function Dashboard() {
               className="border border-gray-300 rounded-lg px-4 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
               {doctors.length === 0 ? (
-                <option value="">No doctors found</option>
+                <option value="">{t('dashboard.noDoctors')}</option>
               ) : (
                 doctors.map(d => (
                   <option key={d.id} value={d.id}>{d.name}</option>
@@ -187,7 +187,7 @@ export default function Dashboard() {
           </div>
 
           {boardLoading ? (
-            <p className="text-gray-400 text-center py-8">Loading queue...</p>
+            <p className="text-gray-400 text-center py-8">{t('dashboard.loadingQueue')}</p>
           ) : (
             <div className="grid grid-cols-3 gap-4">
               <div>
@@ -202,7 +202,7 @@ export default function Dashboard() {
                   ) : (
                     board.inProgress.map((p, i) => (
                       <div key={i} className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                        <p className="font-medium text-gray-800 text-sm">Token #{p.tokenNumber}</p>
+                        <p className="font-medium text-gray-800 text-sm">{t('dashboard.token', { number: p.tokenNumber })}</p>
                         <p className="text-xs text-gray-600">{p.patientName || t('patient')}</p>
                       </div>
                     ))
@@ -222,7 +222,7 @@ export default function Dashboard() {
                   ) : (
                     board.waiting.map((p, i) => (
                       <div key={i} className="p-3 bg-orange-50 border border-orange-200 rounded-lg">
-                        <p className="font-medium text-gray-800 text-sm">Token #{p.tokenNumber}</p>
+                        <p className="font-medium text-gray-800 text-sm">{t('dashboard.token', { number: p.tokenNumber })}</p>
                         <p className="text-xs text-gray-600">{p.patientName || t('patient')}</p>
                       </div>
                     ))
@@ -242,7 +242,7 @@ export default function Dashboard() {
                   ) : (
                     board.completed.map((p, i) => (
                       <div key={i} className="p-3 bg-green-50 border border-green-200 rounded-lg">
-                        <p className="font-medium text-gray-800 text-sm">Token #{p.tokenNumber}</p>
+                        <p className="font-medium text-gray-800 text-sm">{t('dashboard.token', { number: p.tokenNumber })}</p>
                         <p className="text-xs text-gray-600">{p.patientName || t('patient')}</p>
                       </div>
                     ))

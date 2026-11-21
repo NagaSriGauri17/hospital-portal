@@ -3,9 +3,11 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import api from '../../lib/api';
+import { useLanguage } from '../../context/LanguageContext';
 
 export default function WalkinPage() {
   const router = useRouter();
+  const { t } = useLanguage();
   const [doctors, setDoctors] = useState([]);
   const [slots, setSlots] = useState([]);
   const [form, setForm] = useState({
@@ -59,7 +61,7 @@ export default function WalkinPage() {
 
   const handleSubmit = async () => {
     if (!form.patientName || !form.patientPhone || !form.slotId || !form.doctorId) {
-      setMessage('❌ Please fill all fields and select an available slot');
+      setMessage(t('walkin.msg.missing'));
       return;
     }
     setLoading(true);
@@ -71,11 +73,11 @@ export default function WalkinPage() {
         patientPhone: form.patientPhone
       });
       setBooked(res.data);
-      setMessage('✅ Walk-in booking created successfully!');
+      setMessage(t('walkin.msg.success'));
       setForm({ ...form, patientName: '', patientPhone: '', slotId: '' });
       loadSlots(form.doctorId);
     } catch (err) {
-      setMessage('❌ Booking failed: ' + (err.response?.data?.message || 'Slot may not be available'));
+      setMessage(t('walkin.msg.failed', { error: err.response?.data?.message || t('walkin.msg.slotFallback') }));
     }
     setLoading(false);
     setTimeout(() => setMessage(''), 5000);
@@ -84,8 +86,8 @@ export default function WalkinPage() {
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="bg-white shadow-sm px-6 py-4 flex items-center gap-4">
-        <Link href="/dashboard" className="text-blue-600 hover:text-blue-800">← Back</Link>
-        <h1 className="text-xl font-bold text-gray-800">🚶 Walk-in Booking</h1>
+        <Link href="/dashboard" className="text-blue-600 hover:text-blue-800">{t('walkin.back')}</Link>
+        <h1 className="text-xl font-bold text-gray-800">{t('walkin.title')}</h1>
       </div>
 
       <div className="max-w-2xl mx-auto px-6 py-8">
@@ -100,27 +102,27 @@ export default function WalkinPage() {
 
         {booked && (
           <div className="bg-blue-50 border border-blue-200 rounded-xl p-5 mb-6">
-            <h3 className="font-semibold text-blue-800 mb-2">Booking Confirmed</h3>
-            <p className="text-blue-700">Patient: <strong>{booked.user?.name}</strong></p>
-            <p className="text-blue-700">Slot: <strong>{booked.slot?.date} at {booked.slot?.startTime}</strong></p>
-            <p className="text-blue-700">Appointment ID: <strong>#{booked.id}</strong></p>
-            <p className="text-sm text-blue-500 mt-2">Use this ID to check-in the patient in Queue Management</p>
+            <h3 className="font-semibold text-blue-800 mb-2">{t('walkin.bookingConfirmed')}</h3>
+            <p className="text-blue-700">{t('walkin.patient')} <strong>{booked.user?.name}</strong></p>
+            <p className="text-blue-700">{t('walkin.slot')} <strong>{t('walkin.slotAt', { date: booked.slot?.date, time: booked.slot?.startTime })}</strong></p>
+            <p className="text-blue-700">{t('walkin.appointmentId')} <strong>#{booked.id}</strong></p>
+            <p className="text-sm text-blue-500 mt-2">{t('walkin.checkinHint')}</p>
           </div>
         )}
 
         <div className="bg-white rounded-xl shadow-sm p-6">
-          <h2 className="text-lg font-semibold text-gray-800 mb-6">Patient Details</h2>
+          <h2 className="text-lg font-semibold text-gray-800 mb-6">{t('walkin.patientDetails')}</h2>
 
           <div className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Select Doctor</label>
+              <label className="block text-sm font-medium text-gray-700 mb-2">{t('walkin.selectDoctor')}</label>
               <select
                 value={form.doctorId}
                 onChange={(e) => handleDoctorChange(e.target.value)}
                 className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
               >
                 {doctors.length === 0 ? (
-                  <option value="">No doctors found</option>
+                  <option value="">{t('walkin.noDoctors')}</option>
                 ) : (
                   doctors.map(d => (
                     <option key={d.id} value={d.id}>
@@ -132,37 +134,37 @@ export default function WalkinPage() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Patient Name</label>
+              <label className="block text-sm font-medium text-gray-700 mb-2">{t('walkin.patientName')}</label>
               <input
                 type="text"
                 value={form.patientName}
                 onChange={(e) => setForm({...form, patientName: e.target.value})}
-                placeholder="Enter patient full name"
+                placeholder={t('walkin.patientNamePlaceholder')}
                 className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Phone Number</label>
+              <label className="block text-sm font-medium text-gray-700 mb-2">{t('walkin.phone')}</label>
               <input
                 type="tel"
                 value={form.patientPhone}
                 onChange={(e) => setForm({...form, patientPhone: e.target.value})}
-                placeholder="10-digit mobile number"
+                placeholder={t('walkin.phonePlaceholder')}
                 className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Today's Slots ({slots.filter(s => s.status === 'AVAILABLE').length} available)
+                {t('walkin.todaysSlots', { count: slots.filter(s => s.status === 'AVAILABLE').length })}
               </label>
               <div className="flex gap-4 text-xs text-gray-500 mb-2">
-                <span className="flex items-center gap-1"><span className="w-3 h-3 bg-green-100 border border-green-400 rounded inline-block"></span> Available</span>
-                <span className="flex items-center gap-1"><span className="w-3 h-3 bg-red-100 border border-red-400 rounded inline-block"></span> Booked</span>
+                <span className="flex items-center gap-1"><span className="w-3 h-3 bg-green-100 border border-green-400 rounded inline-block"></span> {t('walkin.available')}</span>
+                <span className="flex items-center gap-1"><span className="w-3 h-3 bg-red-100 border border-red-400 rounded inline-block"></span> {t('walkin.booked')}</span>
               </div>
               {slots.length === 0 ? (
-                <p className="text-gray-400 text-sm py-3">No slots found for this doctor today</p>
+                <p className="text-gray-400 text-sm py-3">{t('walkin.noSlots')}</p>
               ) : (
                 <div className="grid grid-cols-4 gap-2">
                   {slots.map((slot) => {
@@ -194,7 +196,7 @@ export default function WalkinPage() {
               disabled={loading}
               className="w-full bg-blue-600 text-white py-4 rounded-xl font-semibold text-lg hover:bg-blue-700 disabled:opacity-50 mt-4"
             >
-              {loading ? 'Creating booking...' : 'Create Walk-in Booking'}
+              {loading ? t('walkin.creating') : t('walkin.create')}
             </button>
           </div>
         </div>
